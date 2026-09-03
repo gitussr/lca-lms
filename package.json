@@ -1,0 +1,24 @@
+{
+  "name": "lca-lms",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Learn Computer Academy Learning Management System — modular monolith (backend) + React frontend.",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=22 <23"
+  },
+  "type": "module",
+  "scripts": {
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.13.0",
+    "eslint": "^9.13.0",
+    "globals": "^15.11.0",
+    "prettier": "^3.3.3",
+    "typescript-eslint": "^8.11.0"
+  }
+}

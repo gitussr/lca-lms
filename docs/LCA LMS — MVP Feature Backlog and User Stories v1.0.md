@@ -269,17 +269,19 @@ a dedicated build task is needed (Epic 13).
 Goal: a running, testable, deployable skeleton with no business features. Maps to §44 of the
 Master Prompt.
 
-### F-001 — Repository & project setup
+### F-001 — Repository & project setup  ·  ✅ DONE (2026-09-03)
 - **Priority:** P0 · **Milestone:** M0 · **Estimate:** S · **Depends on:** —
 - **User story:** As a developer, I want a version-controlled monorepo with agreed structure,
   linting, and formatting, so that all future work has a consistent home.
 - **Acceptance criteria:**
-  - [ ] Git repository initialized; `main` branch protected conceptually (small team rules documented).
-  - [ ] Repo layout created: `backend/`, `frontend/`, `docs/`, `infra/`.
-  - [ ] `.gitignore`, `.editorconfig`, Prettier + ESLint configured for TS.
-  - [ ] `README.md` with setup instructions; `docs/` holds this backlog and the master prompt.
-  - [ ] Conventional commit convention documented (§34).
-- **Security:** `.gitignore` excludes `.env`, secrets, key material, `node_modules`, build output.
+  - [x] Git repository initialized (`main`); branch/PR rules and pending GitHub branch protection documented in `CONTRIBUTING.md`.
+  - [x] Repo layout created: `backend/`, `frontend/`, `docs/`, `infra/` (each with a placeholder README pointing to its scaffolding feature).
+  - [x] `.gitignore`, `.gitattributes` (LF), `.editorconfig`, `.nvmrc` (22); Prettier (`.prettierrc.json` / `.prettierignore`) and ESLint 9 flat config with `typescript-eslint` (`eslint.config.mjs`); root `package.json` scripts `format` / `format:check` / `lint` / `lint:fix`.
+  - [x] `README.md` with layout, prerequisites, setup steps, and a Milestone 0 status table; planning docs moved to `docs/`.
+  - [x] Conventional Commits documented in `CONTRIBUTING.md` (types, scopes, examples) alongside the §24 Definition of Done checklist.
+- **Security:** `.gitignore` excludes `.env` / `.env.*` (keeps `.env.example`), `*.pem` / `*.key` / `*.p12` / `*.pfx`, `secrets/`, `node_modules/`, and build output; verified `git check-ignore` matches `.env` and `node_modules`.
+- **Verification:** `npm install` clean (0 vulnerabilities); `npm run format:check` and `npm run lint` both pass on a clean tree.
+- **Commits:** `docs: add master project prompt and MVP feature backlog` (7e256b1), `chore: F-001 repository and project setup`.
 
 ### F-002 — Backend application skeleton
 - **Priority:** P0 · **Milestone:** M0 · **Estimate:** M · **Depends on:** F-001
@@ -1125,3 +1127,4 @@ infrastructure. Re-plan after each milestone using real feedback (§27, §42).
 |---------|------|--------|
 | 1.0 | 2026-09-03 | Initial backlog derived from Master Project Prompt v1.0. |
 | 1.1 | 2026-09-03 | Resolved D1–D9 with recommended defaults; §1 is now binding. Mirrored into Master Prompt §40. |
+| 1.2 | 2026-09-03 | F-001 completed (repo structure, git hygiene, ESLint/Prettier, README, CONTRIBUTING). |

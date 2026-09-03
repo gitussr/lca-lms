@@ -1300,11 +1300,11 @@ This section must be updated after every meaningful development session.
 
 ## Current Version
 
-`Pre-development / MVP planning`
+`0.0.0 — Milestone 0 (Platform Foundation) in progress`
 
 ## Current Stage
 
-`Product Definition + SDLC Foundation`
+`Milestone 0 — Platform Foundation`
 
 ## Completed
 
@@ -1317,7 +1317,10 @@ This section must be updated after every meaningful development session.
 - Core invariants
 - Iterative SDLC approach
 - One-feature-per-day development strategy
-- MVP Feature Backlog and User Stories v1.0 (`LCA LMS — MVP Feature Backlog and User Stories v1.0.md`)
+- MVP Feature Backlog and User Stories (`docs/LCA LMS — MVP Feature Backlog and User Stories v1.0.md`)
+- Architecture decisions D1–D9 locked
+- Git repository initialized and pushed to `github.com/gitussr/lca-lms`
+- **F-001 — Repository & project setup** (monorepo layout, git hygiene, ESLint + Prettier, README, CONTRIBUTING)
 
 ## Current Technology Direction
 
@@ -1338,7 +1341,19 @@ These remain provisional until the relevant technical decisions are formally mad
 
 ## Current Feature
 
-`None — architecture and project foundation stage`
+`F-002 — Backend application skeleton (next). F-001 — Repository & project setup: DONE 2026-09-03.`
+
+## Milestone 0 Progress
+
+- [x] F-001 Repository & project setup
+- [ ] F-002 Backend application skeleton
+- [ ] F-003 Database foundation
+- [ ] F-004 Configuration & environment
+- [ ] F-005 Structured logging & error handling
+- [ ] F-006 Automated testing foundation
+- [ ] F-007 Frontend application skeleton
+- [ ] F-008 Local development environment
+- [ ] F-009 Continuous integration pipeline
 
 ## Architectural Decisions (locked for MVP)
 
