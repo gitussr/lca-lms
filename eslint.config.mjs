@@ -6,7 +6,7 @@ import globals from 'globals';
 export default tseslint.config(
   {
     // Paths ESLint should never touch.
-    ignores: ['node_modules/', 'dist/', 'build/', 'out/', 'coverage/', '**/*.d.ts'],
+    ignores: ['**/node_modules/', '**/dist/', '**/build/', '**/out/', '**/coverage/', '**/*.d.ts'],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

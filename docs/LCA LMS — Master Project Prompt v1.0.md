@@ -1321,6 +1321,7 @@ This section must be updated after every meaningful development session.
 - Architecture decisions D1–D9 locked
 - Git repository initialized and pushed to `github.com/gitussr/lca-lms`
 - **F-001 — Repository & project setup** (monorepo layout, git hygiene, ESLint + Prettier, README, CONTRIBUTING)
+- **F-002 — Backend application skeleton** (Fastify 5 + TypeScript, `/api/v1/health`, 12 module route plugins, standard error contract, request-id context, helmet + CORS)
 
 ## Current Technology Direction
 
@@ -1341,12 +1342,12 @@ These remain provisional until the relevant technical decisions are formally mad
 
 ## Current Feature
 
-`F-002 — Backend application skeleton (next). F-001 — Repository & project setup: DONE 2026-09-03.`
+`F-003 — Database foundation (next). F-001 & F-002: DONE 2026-09-03.`
 
 ## Milestone 0 Progress
 
 - [x] F-001 Repository & project setup
-- [ ] F-002 Backend application skeleton
+- [x] F-002 Backend application skeleton — Fastify 5 + TS, `/api/v1/health`, 12 module plugins, error contract, helmet/CORS
 - [ ] F-003 Database foundation
 - [ ] F-004 Configuration & environment
 - [ ] F-005 Structured logging & error handling

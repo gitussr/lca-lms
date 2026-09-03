@@ -283,20 +283,22 @@ Master Prompt.
 - **Verification:** `npm install` clean (0 vulnerabilities); `npm run format:check` and `npm run lint` both pass on a clean tree.
 - **Commits:** `docs: add master project prompt and MVP feature backlog` (7e256b1), `chore: F-001 repository and project setup`.
 
-### F-002 — Backend application skeleton
+### F-002 — Backend application skeleton  ·  ✅ DONE (2026-09-03)
 - **Priority:** P0 · **Milestone:** M0 · **Estimate:** M · **Depends on:** F-001
 - **User story:** As a developer, I want a Fastify + TypeScript service that boots, exposes a
   health endpoint, and has a modular folder structure, so that features can be added as
   isolated modules.
 - **Acceptance criteria:**
-  - [ ] Fastify + TS project builds and runs.
-  - [ ] Module folders created per §16: `auth/ users/ students/ teachers/ courses/ batches/ enrollment/ syllabus/ lessons/ videos/ live-classes/ progress/`.
-  - [ ] Each module exposes a route-registration function; app composes them.
-  - [ ] `GET /api/v1/health` returns service status and version.
-  - [ ] Global error handler produces the standard error shape.
-  - [ ] Request-scoped context (request ID, user placeholder) established.
-- **Security:** security headers (helmet-equivalent), CORS locked to the frontend origin,
-  body size limits, no `x-powered-by`.
+  - [x] Fastify 5 + TypeScript (ESM, NodeNext, strict) `@lca-lms/backend` workspace: `npm run build`, `npm start`, `npm run dev:backend` (tsx watch), `npm run typecheck` all work.
+  - [x] All 12 module folders created under `src/modules/` per §16 (`auth users students teachers courses batches enrollment syllabus lessons videos live-classes progress`), plus `health/`.
+  - [x] Each module exports a `FastifyPluginAsync` route-registration function; `src/app.ts` `buildApp()` registers every one at the `/api/v1` prefix. Non-health modules register no endpoints yet.
+  - [x] `GET /api/v1/health` → `{ status, service: "lca-lms-api", version, uptimeSeconds, timestamp }` (version read from `package.json` at runtime).
+  - [x] Global error handler + not-found handler emit `{ error: { code, message, details? }, requestId }`; Fastify validation errors → `VALIDATION_ERROR` with field paths; 5xx → generic `INTERNAL`, full error logged server-side only. `AppError` hierarchy in `src/shared/errors.ts`.
+  - [x] Request context: `x-request-id` accepted from the request header or generated (UUID), attached as `request.id`, echoed on every response; `request.user` decorated to `null` (typed `AuthenticatedUser | null`, populated in F-105).
+- **Security:** `@fastify/helmet` (CSP, HSTS, nosniff, frame-deny, etc. — verified on live responses); `@fastify/cors` locked to `CORS_ORIGIN` allow-list with `credentials: true`; 1 MiB body limit; Fastify sends no `x-powered-by`; error responses carry no stack traces or internal identifiers.
+- **Verification:** `npm run typecheck` clean; `npm test` 3/3 pass (health 200 + shape, unknown route 404 shape, inbound `x-request-id` honoured); `npm run build` emits `dist/`; live `curl` of `npm start` confirms health 200, helmet headers, and the 404 error shape.
+- **Known limitation:** SIGINT/SIGTERM graceful-shutdown hook does not fire reliably on native Windows (Node platform quirk); works in the Linux container used from F-008.
+- **Commit:** `feat(api): F-002 backend application skeleton`.
 
 ### F-003 — Database foundation
 - **Priority:** P0 · **Milestone:** M0 · **Estimate:** M · **Depends on:** F-002
@@ -1128,3 +1130,4 @@ infrastructure. Re-plan after each milestone using real feedback (§27, §42).
 | 1.0 | 2026-09-03 | Initial backlog derived from Master Project Prompt v1.0. |
 | 1.1 | 2026-09-03 | Resolved D1–D9 with recommended defaults; §1 is now binding. Mirrored into Master Prompt §40. |
 | 1.2 | 2026-09-03 | F-001 completed (repo structure, git hygiene, ESLint/Prettier, README, CONTRIBUTING). |
+| 1.3 | 2026-09-03 | F-002 completed (Fastify skeleton, 12 module plugins, /api/v1/health, error contract, request context, helmet/CORS). |

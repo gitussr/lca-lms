@@ -21,11 +21,11 @@ Read the Master Project Prompt before contributing.
 
 ```
 LCA-LMS/
-├── backend/    # Fastify API — modular monolith        (scaffolded in F-002)
-├── frontend/   # React + TypeScript web client         (scaffolded in F-007)
-├── infra/      # docker-compose, CI, deployment configs (scaffolded in F-008/F-009)
+├── backend/    # Fastify API — modular monolith         (skeleton: F-002)
+├── frontend/   # React + TypeScript web client          (scaffolded in F-007)
+├── infra/      # docker-compose, CI, deployment configs  (scaffolded in F-008/F-009)
 ├── docs/       # project documents
-└── (root)      # shared tooling: ESLint, Prettier, EditorConfig, git config
+└── (root)      # npm workspace root + shared tooling: ESLint, Prettier, EditorConfig
 ```
 
 ## Current status
@@ -34,8 +34,8 @@ LCA-LMS/
 
 | Feature | Status |
 |---------|--------|
-| F-001 Repository & project setup | In progress |
-| F-002 Backend application skeleton | Not started |
+| F-001 Repository & project setup | ✅ Done |
+| F-002 Backend application skeleton | ✅ Done |
 | F-003 Database foundation | Not started |
 | F-004 Configuration & environment | Not started |
 | F-005 Structured logging & error handling | Not started |
