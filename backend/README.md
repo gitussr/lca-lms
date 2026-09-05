@@ -7,10 +7,11 @@ The LCA LMS API — a **modular monolith** built with Node.js + Fastify + TypeSc
 
 Skeleton scaffolded in **F-002**. Boots, serves `GET /api/v1/health`, and wires all 12
 domain modules as (mostly empty) route plugins. **F-003** adds a Postgres connection
-pool and migration tooling (see `src/db/README.md`) — no domain tables or auth yet.
+pool and migration tooling (see `src/db/README.md`). **F-004** replaces the config
+shim with a schema-validated loader (see `src/shared/config.ts`) — no domain tables
+or auth yet.
 
 Coming next:
-- **F-004** — schema-validated config (replaces `src/shared/config.ts`)
 - **F-005** — structured logging + redaction
 - **F-006** — full test harness (disposable DB, auth/request helpers, coverage)
 
@@ -27,7 +28,7 @@ backend/
 │   │   ├── pool.integration.test.ts  # DB-backed test; self-skips with no Postgres
 │   │   └── README.md         # connection + migration + schema conventions
 │   ├── shared/
-│   │   ├── config.ts         # minimal env config (F-004 replaces this)
+│   │   ├── config.ts         # schema-validated env config (Zod); fails fast at boot
 │   │   ├── errors.ts         # AppError hierarchy
 │   │   ├── error-handler.ts  # global error + not-found handlers (standard shape)
 │   │   ├── auth-context.ts   # AuthenticatedUser type for request.user (F-105 fills it)

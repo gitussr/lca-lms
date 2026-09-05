@@ -324,11 +324,21 @@ Master Prompt.
 - **User story:** As a developer, I want typed, validated configuration loaded from the
   environment, so that misconfiguration is caught at startup and secrets never enter source.
 - **Acceptance criteria:**
-  - [ ] Central config module validates all required env vars against a schema at boot.
-  - [ ] `.env.example` lists every variable with a description and safe placeholder.
-  - [ ] Distinct config profiles for development / test / staging / production (§33).
-  - [ ] App refuses to start with missing/invalid required config.
+  - [x] Central config module validates all required env vars against a schema at boot.
+  - [x] `.env.example` lists every variable with a description and safe placeholder.
+  - [x] Distinct config profiles for development / test / staging / production (§33).
+  - [x] App refuses to start with missing/invalid required config.
 - **Security:** no secret has a real default value in code; secrets are never logged.
+- **Status:** DONE 2026-09-05. `backend/src/shared/config.ts` rewritten around a Zod schema:
+  `buildConfig(env)` is the pure, unit-tested core (throws an aggregated `ConfigError` — every
+  problem found, never just the first, and never a variable's raw value); the module's
+  `config` export wraps it in `loadConfigOrExit()`, which prints the aggregated error and
+  calls `process.exit(1)` on failure — verified manually with `tsx` for both an invalid
+  (bad `PORT`) and a valid production-shaped env. staging/production are one strict profile:
+  `DATABASE_URL` and `CORS_ORIGIN` have no default there, and the known local placeholder
+  `DATABASE_URL` is rejected even if supplied explicitly. 24 unit tests in `config.test.ts`
+  cover defaults, coercion, every profile's required-field rules, and the no-secret-leakage
+  guarantee.
 
 ### F-005 — Structured logging & error handling
 - **Priority:** P0 · **Milestone:** M0 · **Estimate:** S · **Depends on:** F-002
