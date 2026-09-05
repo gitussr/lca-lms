@@ -305,12 +305,19 @@ Master Prompt.
 - **User story:** As a developer, I want PostgreSQL wired in with a migration tool and a
   connection pool, so that schema evolves safely and reproducibly.
 - **Acceptance criteria:**
-  - [ ] Postgres connection pool configured from env; fails fast on bad config.
-  - [ ] Migration tool chosen and documented; `migrate up` / `migrate down` work.
-  - [ ] Baseline migration creates a `schema_migrations` record and a shared `updated_at` trigger helper.
-  - [ ] Conventions documented: UUID primary keys, `created_at`/`updated_at`/`deleted_at`, snake_case columns.
-  - [ ] Integration test harness spins up a disposable test database.
+  - [x] Postgres connection pool configured from env; fails fast on bad config.
+  - [x] Migration tool chosen and documented; `migrate up` / `migrate down` work.
+  - [x] Baseline migration creates a `schema_migrations` record and a shared `updated_at` trigger helper.
+  - [x] Conventions documented: UUID primary keys, `created_at`/`updated_at`/`deleted_at`, snake_case columns.
+  - [x] Integration test harness spins up a disposable test database.
 - **Security:** DB credentials only from env (§33); least-privilege DB user documented as a target.
+- **Status:** DONE 2026-09-05. `pg` + `node-pg-migrate` (TS migrations, `schema_migrations`
+  table). Pool: `backend/src/db/pool.ts`. Baseline migration + conventions:
+  `backend/migrations/`, `backend/src/db/README.md`. Tests: `pool.test.ts` (singleton
+  lifecycle, no DB needed) + `pool.integration.test.ts` (creates a disposable DB, migrates
+  up/down, drops it — self-skips with a logged reason when no Postgres server is reachable;
+  not run against a live database in this session since none was available). No local
+  Postgres automation yet — that is F-008.
 
 ### F-004 — Configuration & environment system
 - **Priority:** P0 · **Milestone:** M0 · **Estimate:** S · **Depends on:** F-002

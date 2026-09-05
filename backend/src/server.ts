@@ -1,4 +1,5 @@
 import { buildApp } from './app.js';
+import { closePool } from './db/pool.js';
 import { config } from './shared/config.js';
 
 /**
@@ -12,6 +13,7 @@ async function main(): Promise<void> {
     app.log.info({ signal }, 'shutting down');
     try {
       await app.close();
+      await closePool();
       process.exit(0);
     } catch (err) {
       app.log.error({ err }, 'error during shutdown');
