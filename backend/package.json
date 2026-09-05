@@ -15,6 +15,7 @@
     "start": "node dist/server.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --import tsx --import ./src/test/setup.ts --test \"src/**/*.test.ts\"",
+    "test:coverage": "node --import tsx --import ./src/test/setup.ts --experimental-test-coverage --test-coverage-exclude=\"**/*.test.ts\" --test \"src/**/*.test.ts\"",
     "db:migrate:create": "node-pg-migrate create -m migrations -j ts --",
     "db:migrate:up": "node-pg-migrate up -m migrations -t schema_migrations",
     "db:migrate:down": "node-pg-migrate down -m migrations -t schema_migrations"

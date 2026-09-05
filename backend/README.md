@@ -9,11 +9,12 @@ Skeleton scaffolded in **F-002**. Boots, serves `GET /api/v1/health`, and wires 
 domain modules as (mostly empty) route plugins. **F-003** adds a Postgres connection
 pool and migration tooling (see `src/db/README.md`). **F-004** replaces the config
 shim with a schema-validated loader (see `src/shared/config.ts`). **F-005** adds
-structured request/error logging with redaction (see `src/shared/logger.ts`) — no
-domain tables or auth yet.
+structured request/error logging with redaction (see `src/shared/logger.ts`). **F-006**
+adds the shared test harness — disposable-database + reset helpers, a fake-authenticated-
+user helper, coverage reporting (see `src/test/README.md`) — no domain tables or auth yet.
 
 Coming next:
-- **F-006** — full test harness (disposable DB, auth/request helpers, coverage)
+- **F-007** — frontend application skeleton
 
 ## Layout
 
@@ -34,6 +35,11 @@ backend/
 │   │   ├── error-handler.ts  # global error + not-found handlers (standard shape)
 │   │   ├── auth-context.ts   # AuthenticatedUser type for request.user (F-105 fills it)
 │   │   └── pkg.ts            # runtime package version for /health
+│   ├── test/
+│   │   ├── setup.ts          # forces NODE_ENV=test; loaded via `node --import`
+│   │   ├── db.ts             # disposable-database-per-file harness (F-006)
+│   │   ├── auth.ts           # actAs() / fakeAuthenticatedUser() for role-gated routes
+│   │   └── README.md         # how to use the harness; what's deferred and why
 │   ├── types/
 │   │   └── fastify.d.ts      # request.user augmentation
 │   └── modules/
@@ -61,7 +67,8 @@ npm run dev:backend
 
 # from backend/
 npm run typecheck
-npm test
+npm test               # unit + integration; DB-backed tests self-skip without Postgres
+npm run test:coverage  # same, with a coverage report (see src/test/README.md)
 npm run build && npm start
 ```
 

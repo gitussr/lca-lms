@@ -1337,6 +1337,12 @@ This section must be updated after every meaningful development session.
   serializer; one structured line per request with method/path/status/duration/reqId/userId;
   5xx errors keep logging a full server-side stack while clients see only a safe message +
   request ID)
+- **F-006 — Automated testing foundation** (`test/db.ts`: disposable database per test file,
+  migrated once, `.reset()` truncates between individual tests; `test/auth.ts`: `actAs()` +
+  `fakeAuthenticatedUser()` for role-gated route tests with no session store or `users` table
+  yet; `test:coverage` script, target documented at 70% lines for `shared/*`/`db/*`, no gate.
+  Seeding a user/course/enrollment is explicitly deferred to land alongside F-101/F-2xx/F-3xx
+  rather than built speculatively against schema that doesn't exist — §37)
 
 ## Current Technology Direction
 
@@ -1357,7 +1363,7 @@ These remain provisional until the relevant technical decisions are formally mad
 
 ## Current Feature
 
-`F-006 — Automated testing foundation (next). F-001 & F-002: DONE 2026-09-03. F-003, F-004 & F-005: DONE 2026-09-05.`
+`F-007 — Frontend application skeleton (next). F-001 & F-002: DONE 2026-09-03. F-003 through F-006: DONE 2026-09-05.`
 
 ## Milestone 0 Progress
 
@@ -1366,6 +1372,7 @@ These remain provisional until the relevant technical decisions are formally mad
 - [x] F-003 Database foundation — `pg` pool + `node-pg-migrate` (TS migrations, `schema_migrations` table), baseline `set_updated_at()` trigger, documented conventions, disposable-DB integration test
 - [x] F-004 Configuration & environment — Zod-validated config, aggregated `ConfigError`, distinct dev/test/staging/production profiles, app exits cleanly on invalid config
 - [x] F-005 Structured logging & error handling — Pino JSON logs, recursive redaction hook, one line per request (method/path/status/duration/reqId/userId), 5xx stack logged server-side only
+- [x] F-006 Automated testing foundation — disposable-DB-per-file harness with fast reset, fake-authenticated-user helper for role-gated routes, coverage reporting; user/course/enrollment seeding deferred to F-101/F-2xx/F-3xx
 - [ ] F-006 Automated testing foundation
 - [ ] F-007 Frontend application skeleton
 - [ ] F-008 Local development environment

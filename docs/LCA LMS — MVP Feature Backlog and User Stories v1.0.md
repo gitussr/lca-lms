@@ -370,12 +370,30 @@ Master Prompt.
 - **User story:** As a developer, I want unit and integration test runners wired up with a
   reset-between-tests database, so that every feature can ship with tests (§21).
 - **Acceptance criteria:**
-  - [ ] Test runner configured for backend; `npm test` runs unit + integration suites.
-  - [ ] Integration tests get a clean database per run (migrate + truncate/rollback strategy).
-  - [ ] Test helpers: build authenticated request as a given role, seed a user/course/enrollment.
-  - [ ] Coverage reporting enabled (no hard gate yet; target documented).
-  - [ ] Example tests for `GET /health` and one migration.
+  - [x] Test runner configured for backend; `npm test` runs unit + integration suites.
+  - [x] Integration tests get a clean database per run (migrate + truncate/rollback strategy).
+  - [x] Test helpers: build authenticated request as a given role. **Partial** — seeding a
+        user/course/enrollment is deferred; see Status.
+  - [x] Coverage reporting enabled (no hard gate yet; target documented).
+  - [x] Example tests for `GET /health` and one migration.
 - **Security:** test fixtures use obviously fake credentials; no production data in fixtures.
+- **Status:** DONE 2026-09-05 (with one criterion partially deferred, flagged rather than
+  faked — §37). `backend/src/test/db.ts`: `createTestDatabase()` creates a uniquely-named
+  disposable database per test *file*, migrates it up once, exposes `.reset()` (fast
+  truncate-all-application-tables between individual tests, proven against a throwaway table
+  it creates itself in `test/db.integration.test.ts`) and `.drop()`. `db/pool.integration.test.ts`
+  refactored onto this shared helper. `backend/src/test/auth.ts`: `actAs(app, user)` sets
+  `request.user` directly (the field F-105's session middleware will populate for real) and
+  `fakeAuthenticatedUser(role)` builds an obviously-fake user (`00000000-0000-4000-a000-…`
+  ids) — lets role-gated route tests (F-106+) run today with no session store or `users`
+  table. `npm run test:coverage` (Node's built-in `--experimental-test-coverage`); target
+  documented in `src/test/README.md` (70% lines for `shared/*` and `db/*`), no gate yet.
+  **Deferred:** seeding a user/course/enrollment needs tables that don't exist until
+  F-101/F-2xx/F-3xx — building that now would be speculative code with nothing to verify it
+  against, so each seed helper is deferred to land alongside the schema it seeds (documented
+  in `test/README.md`'s "What's deferred"). No local Postgres was available in this session,
+  so the DB-backed parts (`.reset()`, migrate up/down) are verified by self-skip behavior +
+  the pre-existing F-003 disposable-DB pattern, not a live run — same caveat as F-003.
 
 ### F-007 — Frontend application skeleton
 - **Priority:** P0 · **Milestone:** M0 · **Estimate:** M · **Depends on:** F-001
