@@ -1331,6 +1331,12 @@ This section must be updated after every meaningful development session.
   cleanly — no stack trace — on invalid/missing required config; development/test/staging/
   production are distinct profiles, with staging+production requiring an explicit
   `DATABASE_URL`/`CORS_ORIGIN` and rejecting the local placeholder database)
+- **F-005 — Structured logging & error handling** (Pino JSON logging via `shared/logger.ts`;
+  a recursive redaction hook strips sensitive key values — password/token/authorization/
+  cookie — at any nesting depth while leaving `Error` instances intact for the stack-trace
+  serializer; one structured line per request with method/path/status/duration/reqId/userId;
+  5xx errors keep logging a full server-side stack while clients see only a safe message +
+  request ID)
 
 ## Current Technology Direction
 
@@ -1351,7 +1357,7 @@ These remain provisional until the relevant technical decisions are formally mad
 
 ## Current Feature
 
-`F-005 — Structured logging & error handling (next). F-001 & F-002: DONE 2026-09-03. F-003 & F-004: DONE 2026-09-05.`
+`F-006 — Automated testing foundation (next). F-001 & F-002: DONE 2026-09-03. F-003, F-004 & F-005: DONE 2026-09-05.`
 
 ## Milestone 0 Progress
 
@@ -1359,7 +1365,7 @@ These remain provisional until the relevant technical decisions are formally mad
 - [x] F-002 Backend application skeleton — Fastify 5 + TS, `/api/v1/health`, 12 module plugins, error contract, helmet/CORS
 - [x] F-003 Database foundation — `pg` pool + `node-pg-migrate` (TS migrations, `schema_migrations` table), baseline `set_updated_at()` trigger, documented conventions, disposable-DB integration test
 - [x] F-004 Configuration & environment — Zod-validated config, aggregated `ConfigError`, distinct dev/test/staging/production profiles, app exits cleanly on invalid config
-- [ ] F-005 Structured logging & error handling
+- [x] F-005 Structured logging & error handling — Pino JSON logs, recursive redaction hook, one line per request (method/path/status/duration/reqId/userId), 5xx stack logged server-side only
 - [ ] F-006 Automated testing foundation
 - [ ] F-007 Frontend application skeleton
 - [ ] F-008 Local development environment

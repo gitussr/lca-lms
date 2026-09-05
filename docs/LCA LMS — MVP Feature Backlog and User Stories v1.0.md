@@ -345,11 +345,25 @@ Master Prompt.
 - **User story:** As an operator, I want structured request and error logs with correlation
   IDs, so that I can debug issues without leaking sensitive data.
 - **Acceptance criteria:**
-  - [ ] JSON structured logger; log level from config.
-  - [ ] Each request logged with method, path, status, duration, request ID, user ID (if any).
-  - [ ] Unhandled errors logged with stack server-side; client sees only a safe message + request ID.
-  - [ ] A redaction list prevents passwords, tokens, cookies, and auth headers from being logged (§19 Q10, §32).
+  - [x] JSON structured logger; log level from config.
+  - [x] Each request logged with method, path, status, duration, request ID, user ID (if any).
+  - [x] Unhandled errors logged with stack server-side; client sees only a safe message + request ID.
+  - [x] A redaction list prevents passwords, tokens, cookies, and auth headers from being logged (§19 Q10, §32).
 - **Security:** verified that a failed login and a validation error do not log the submitted password.
+- **Status:** DONE 2026-09-05. Fastify's Pino logger configured via `backend/src/shared/logger.ts`:
+  level from config, plus a recursive `logMethod` hook (`redactSensitive`) that replaces
+  sensitive key values (`password`, `token`, `authorization`, `cookie`, …) at any nesting
+  depth, case-insensitively — Error instances pass through unredacted so Fastify's default
+  `err` serializer still captures message/stack. `app.ts`'s `onResponse` hook logs one line
+  per request (`method`, `path` with query stripped, `statusCode`, `durationMs`, `userId`);
+  Fastify's own two-line request log is disabled (`disableRequestLogging`, a documented,
+  still-supported deprecation) to avoid duplication. 5xx errors already logged with a full
+  stack server-side via `error-handler.ts` (present since F-002; now verified by test).
+  `buildApp()` gained an optional `logger` override so tests can capture real log output.
+  No login endpoint exists yet (F-103), so the password-redaction requirement is verified
+  against a stand-in handler that deliberately logs the raw request body — the shape a
+  real login/register handler will have — plus a schema-validated route for the validation-
+  error case. 12 new tests (8 redaction unit tests + 4 through the real app/error handler).
 
 ### F-006 — Automated testing foundation
 - **Priority:** P0 · **Milestone:** M0 · **Estimate:** M · **Depends on:** F-003

@@ -1,10 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
-import Fastify, { type FastifyInstance } from 'fastify';
+import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
 
 import { config } from './shared/config.js';
 import { registerErrorHandler } from './shared/error-handler.js';
+import { loggerOptions } from './shared/logger.js';
 
 import { healthRoutes } from './modules/health/health.routes.js';
 import { authRoutes } from './modules/auth/auth.routes.js';
@@ -47,9 +48,22 @@ const moduleRoutes = [
   progressRoutes,
 ];
 
-export async function buildApp(): Promise<FastifyInstance> {
+export interface BuildAppOptions {
+  /**
+   * Overrides the Fastify logger. Defaults to disabled in tests and the
+   * redacting structured logger (`shared/logger.ts`) otherwise. Tests that
+   * need to inspect log output pass their own `{ ...loggerOptions, stream }`
+   * here rather than relying on the default.
+   */
+  logger?: FastifyServerOptions['logger'];
+}
+
+export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
   const app = Fastify({
-    logger: config.isTest ? false : { level: config.logLevel },
+    logger: options.logger ?? (config.isTest ? false : loggerOptions),
+    // We log one structured line per request ourselves (see the onResponse
+    // hook below) instead of Fastify's default two-line request/response log.
+    disableRequestLogging: true,
     bodyLimit: BODY_LIMIT_BYTES,
     trustProxy: true,
     requestIdHeader: 'x-request-id',
@@ -65,6 +79,27 @@ export async function buildApp(): Promise<FastifyInstance> {
   // Echo the correlation id on every response (success and error).
   app.addHook('onSend', async (request, reply) => {
     reply.header('x-request-id', request.id);
+  });
+
+  // One structured line per request: method, path, status, duration, and the
+  // authenticated user (once F-105 populates request.user). `request.log` is
+  // Fastify's per-request child logger, so `reqId` is already bound onto
+  // every line it emits — no need to add it again here. The query string is
+  // stripped from `path`: it can carry sensitive values (e.g. a reset token)
+  // that don't belong in a log line.
+  app.addHook('onResponse', async (request, reply) => {
+    const statusCode = reply.statusCode;
+    const level = statusCode >= 500 ? 'error' : statusCode >= 400 ? 'warn' : 'info';
+    request.log[level](
+      {
+        method: request.method,
+        path: request.url.split('?')[0],
+        statusCode,
+        durationMs: Math.round(reply.elapsedTime),
+        userId: request.user?.id ?? null,
+      },
+      'request completed',
+    );
   });
 
   await app.register(helmet);
