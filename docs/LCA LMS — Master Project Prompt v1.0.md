@@ -1343,6 +1343,16 @@ This section must be updated after every meaningful development session.
   yet; `test:coverage` script, target documented at 70% lines for `shared/*`/`db/*`, no gate.
   Seeding a user/course/enrollment is explicitly deferred to land alongside F-101/F-2xx/F-3xx
   rather than built speculatively against schema that doesn't exist — §37)
+- **F-007 — Frontend application skeleton** (React 19 + TypeScript + Vite 6 app in `frontend/`,
+  added to the npm workspace root. `src/api/client.ts`: one credentialed `fetch` wrapper that
+  owns the `/api/v1` base URL and parses the backend error envelope into a typed `ApiError`,
+  distinct from `NetworkError`. `src/auth/`: `AuthProvider` resolves `GET /me` once
+  (unauthenticated until F-107), `ProtectedRoute` redirects to `/login` when unauthenticated
+  and to the caller's own home on a role mismatch — UX only, the API still enforces every
+  rule (invariant 7). `AppRoutes.tsx`: `/login` public; `/`, `/teacher`, `/admin` each gated
+  and wrapped in an empty-nav layout shell over a placeholder dashboard. UI primitives:
+  `Spinner`, `LoadingScreen`, `ErrorState`, `ErrorBoundary`. 23 Vitest + Testing Library
+  tests; lint/typecheck/build/test green for both workspaces)
 
 ## Current Technology Direction
 
@@ -1363,7 +1373,7 @@ These remain provisional until the relevant technical decisions are formally mad
 
 ## Current Feature
 
-`F-007 — Frontend application skeleton (next). F-001 & F-002: DONE 2026-09-03. F-003 through F-006: DONE 2026-09-05.`
+`F-008 — Local development environment (next). F-001 & F-002: DONE 2026-09-03. F-003 through F-006: DONE 2026-09-05. F-007: DONE 2026-09-07.`
 
 ## Milestone 0 Progress
 
@@ -1373,8 +1383,7 @@ These remain provisional until the relevant technical decisions are formally mad
 - [x] F-004 Configuration & environment — Zod-validated config, aggregated `ConfigError`, distinct dev/test/staging/production profiles, app exits cleanly on invalid config
 - [x] F-005 Structured logging & error handling — Pino JSON logs, recursive redaction hook, one line per request (method/path/status/duration/reqId/userId), 5xx stack logged server-side only
 - [x] F-006 Automated testing foundation — disposable-DB-per-file harness with fast reset, fake-authenticated-user helper for role-gated routes, coverage reporting; user/course/enrollment seeding deferred to F-101/F-2xx/F-3xx
-- [ ] F-006 Automated testing foundation
-- [ ] F-007 Frontend application skeleton
+- [x] F-007 Frontend application skeleton — React 19 + TS + Vite in `frontend/`, `/api/v1` client (typed `ApiError`/`NetworkError`), auth context + protected-route wrapper, Student/Teacher/Admin layout shells (empty nav), loading/error primitives, 23 Vitest tests
 - [ ] F-008 Local development environment
 - [ ] F-009 Continuous integration pipeline
 
@@ -1394,7 +1403,9 @@ Recorded in the MVP Feature Backlog §1. Changing any of these requires the §36
 
 ## Next Major Step
 
-Begin **Milestone 0 — Platform Foundation**, starting with `F-001 Repository & project setup`.
+**Milestone 0 — Platform Foundation**, F-007 of 9 done. Next: `F-008 Local development
+environment` (Docker Compose for Postgres + Redis, migration + first-admin-seed commands),
+then `F-009 Continuous integration pipeline` closes M0.
 
 ---
 

@@ -22,7 +22,7 @@ Read the Master Project Prompt before contributing.
 ```
 LCA-LMS/
 ├── backend/    # Fastify API — modular monolith         (skeleton: F-002)
-├── frontend/   # React + TypeScript web client          (scaffolded in F-007)
+├── frontend/   # React + TypeScript + Vite web client   (skeleton: F-007)
 ├── infra/      # docker-compose, CI, deployment configs  (scaffolded in F-008/F-009)
 ├── docs/       # project documents
 └── (root)      # npm workspace root + shared tooling: ESLint, Prettier, EditorConfig
@@ -36,11 +36,11 @@ LCA-LMS/
 |---------|--------|
 | F-001 Repository & project setup | ✅ Done |
 | F-002 Backend application skeleton | ✅ Done |
-| F-003 Database foundation | Not started |
-| F-004 Configuration & environment | Not started |
-| F-005 Structured logging & error handling | Not started |
-| F-006 Automated testing foundation | Not started |
-| F-007 Frontend application skeleton | Not started |
+| F-003 Database foundation | ✅ Done |
+| F-004 Configuration & environment | ✅ Done |
+| F-005 Structured logging & error handling | ✅ Done |
+| F-006 Automated testing foundation | ✅ Done |
+| F-007 Frontend application skeleton | ✅ Done |
 | F-008 Local development environment | Not started |
 | F-009 Continuous integration pipeline | Not started |
 
@@ -74,6 +74,11 @@ Backend and frontend each get their own `README` with run instructions once scaf
 | `npm run format:check` | Check formatting (used in CI) |
 | `npm run lint` | Lint with ESLint |
 | `npm run lint:fix` | Lint and auto-fix |
+| `npm run typecheck` | Type-check every workspace |
+| `npm run build` | Build every workspace |
+| `npm test` | Run every workspace's tests |
+| `npm run dev:backend` | Start the API in watch mode (port 3000) |
+| `npm run dev:frontend` | Start the web client dev server (port 5173) |
 
 ## Contributing
 

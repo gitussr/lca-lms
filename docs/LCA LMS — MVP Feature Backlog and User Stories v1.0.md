@@ -400,13 +400,32 @@ Master Prompt.
 - **User story:** As a developer, I want a React + TypeScript app with routing, an API
   client, and auth-aware layout shells, so that role-specific screens can be added.
 - **Acceptance criteria:**
-  - [ ] React + TS app builds and runs; connects to `/api/v1`.
-  - [ ] Router with public routes (login) and protected route wrapper.
-  - [ ] Central API client handles base URL, credentials, and standard error parsing.
-  - [ ] Layout shells for Student / Teacher / Admin (empty nav, no features).
-  - [ ] Loading and error UI primitives.
+  - [x] React + TS app builds and runs; connects to `/api/v1`.
+  - [x] Router with public routes (login) and protected route wrapper.
+  - [x] Central API client handles base URL, credentials, and standard error parsing.
+  - [x] Layout shells for Student / Teacher / Admin (empty nav, no features).
+  - [x] Loading and error UI primitives.
 - **Security:** protected route wrapper redirects unauthenticated users to login; it is a UX
   convenience only — the backend remains the authority (invariant 7).
+- **Status:** DONE 2026-09-07. React 19 + TypeScript + Vite 6 app in `frontend/`, added to the
+  npm workspace root. `src/api/client.ts`: single `fetch` wrapper — knows the `/api/v1` base
+  (`VITE_API_BASE_URL`), sends `credentials: 'include'` on every call (session cookie, D2),
+  parses the backend's `{ error: { code, message, details }, requestId }` envelope into a
+  typed `ApiError`, and separates that from `NetworkError` (request never completed);
+  `AbortError` is re-thrown untouched. `src/auth/`: `AuthProvider` resolves `GET /me` once on
+  mount (404/401 → quietly unauthenticated until F-107), exposes `refresh()`/`logout()`;
+  `ProtectedRoute` renders a loader while resolving, redirects to `/login` (remembering
+  `from`) when unauthenticated, and sends a wrong-role user to their own home (no redirect
+  loop). Route table in `AppRoutes.tsx`: `/login` public, `/` (student) · `/teacher` ·
+  `/admin` each behind `ProtectedRoute allow={[…]}` → a role layout shell (`AppShell` with
+  an intentionally empty nav) → a `PlaceholderDashboard`; `*` → not-found. UI primitives:
+  `Spinner`, `LoadingScreen`, `ErrorState` (friendly message + request id + retry),
+  `ErrorBoundary`. Theme-aware CSS, no UI framework. 23 Vitest + Testing Library tests
+  (client error/network parsing incl. validation-failure shape; route guard for
+  unauthenticated / wrong-role / allowed; public vs gated routing; error-state rendering).
+  `npm run lint`/`typecheck`/`build`/`test` all green across both workspaces. The login form
+  posts to `POST /api/v1/auth/login` through the client but that endpoint is F-103, so a
+  submit currently surfaces the backend error via `ErrorState` — intended until F-103.
 
 ### F-008 — Local development environment
 - **Priority:** P0 · **Milestone:** M0 · **Estimate:** S · **Depends on:** F-003
@@ -1180,3 +1199,5 @@ infrastructure. Re-plan after each milestone using real feedback (§27, §42).
 | 1.1 | 2026-09-03 | Resolved D1–D9 with recommended defaults; §1 is now binding. Mirrored into Master Prompt §40. |
 | 1.2 | 2026-09-03 | F-001 completed (repo structure, git hygiene, ESLint/Prettier, README, CONTRIBUTING). |
 | 1.3 | 2026-09-03 | F-002 completed (Fastify skeleton, 12 module plugins, /api/v1/health, error contract, request context, helmet/CORS). |
+| 1.4 | 2026-09-05 | F-003–F-006 completed (DB foundation, config/env system, structured logging & error handling, testing foundation). Status recorded per feature above. |
+| 1.5 | 2026-09-07 | F-007 completed (React + TS + Vite frontend skeleton: `/api/v1` client with error/network parsing, auth context + protected-route wrapper, Student/Teacher/Admin layout shells, loading/error primitives, 23 Vitest tests). |

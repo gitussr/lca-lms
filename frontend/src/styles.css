@@ -1,0 +1,245 @@
+:root {
+  --lca-bg: #f6f7f9;
+  --lca-surface: #ffffff;
+  --lca-border: #d9dde3;
+  --lca-text: #1c2530;
+  --lca-muted: #5b6673;
+  --lca-primary: #1f5fbf;
+  --lca-primary-text: #ffffff;
+  --lca-danger: #b3261e;
+  --lca-radius: 8px;
+  --lca-gap: 16px;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --lca-bg: #12151a;
+    --lca-surface: #1b1f26;
+    --lca-border: #333a44;
+    --lca-text: #e7ebf0;
+    --lca-muted: #9aa4b0;
+    --lca-primary: #4a8be6;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  background: var(--lca-bg);
+  color: var(--lca-text);
+  line-height: 1.5;
+}
+
+.lca-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.lca-muted {
+  color: var(--lca-muted);
+}
+
+/* --- Buttons --- */
+.lca-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: 1px solid transparent;
+  border-radius: var(--lca-radius);
+  background: var(--lca-primary);
+  color: var(--lca-primary-text);
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.lca-button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.lca-button--ghost {
+  background: transparent;
+  border-color: var(--lca-border);
+  color: var(--lca-text);
+}
+
+/* --- Layout primitives --- */
+.lca-centered-screen {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--lca-gap);
+  padding: var(--lca-gap);
+}
+
+.lca-card {
+  background: var(--lca-surface);
+  border: 1px solid var(--lca-border);
+  border-radius: var(--lca-radius);
+  padding: 24px;
+  max-width: 420px;
+  width: 100%;
+}
+
+/* --- App shell --- */
+.lca-shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.lca-shell__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--lca-gap);
+  padding: 12px 20px;
+  background: var(--lca-surface);
+  border-bottom: 1px solid var(--lca-border);
+}
+
+.lca-shell__brand {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.lca-shell__area {
+  color: var(--lca-muted);
+  font-size: 0.9rem;
+}
+
+.lca-shell__account {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.lca-shell__nav {
+  display: flex;
+  gap: 4px;
+  padding: 8px 20px;
+  background: var(--lca-surface);
+  border-bottom: 1px solid var(--lca-border);
+}
+
+.lca-shell__navlink {
+  padding: 6px 12px;
+  border-radius: var(--lca-radius);
+  color: var(--lca-muted);
+  text-decoration: none;
+}
+
+.lca-shell__navlink.active {
+  color: var(--lca-text);
+  background: var(--lca-bg);
+}
+
+.lca-shell__main {
+  flex: 1;
+  padding: 24px 20px;
+}
+
+/* --- Forms --- */
+.lca-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--lca-gap);
+  margin-top: var(--lca-gap);
+}
+
+.lca-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lca-field input {
+  padding: 8px 10px;
+  border: 1px solid var(--lca-border);
+  border-radius: var(--lca-radius);
+  background: var(--lca-bg);
+  color: var(--lca-text);
+  font: inherit;
+}
+
+.lca-login__title {
+  margin: 0 0 4px;
+}
+
+/* --- Error state --- */
+.lca-error-state {
+  border: 1px solid var(--lca-danger);
+  border-radius: var(--lca-radius);
+  padding: 16px;
+  background: color-mix(in srgb, var(--lca-danger) 8%, transparent);
+}
+
+.lca-error-state__title {
+  margin: 0 0 6px;
+  font-size: 1rem;
+}
+
+.lca-error-state__message {
+  margin: 0 0 6px;
+}
+
+.lca-error-state__ref {
+  margin: 0 0 12px;
+  font-size: 0.8rem;
+  color: var(--lca-muted);
+}
+
+/* --- Spinner --- */
+.lca-spinner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lca-spinner__ring {
+  width: 100%;
+  height: 100%;
+  border: 2px solid var(--lca-border);
+  border-top-color: var(--lca-primary);
+  border-radius: 50%;
+  animation: lca-spin 0.7s linear infinite;
+}
+
+@keyframes lca-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lca-spinner__ring {
+    animation-duration: 2s;
+  }
+}
+
+.lca-placeholder h1 {
+  margin-top: 0;
+}

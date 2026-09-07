@@ -34,4 +34,18 @@ export default tseslint.config(
       globals: { ...globals.node },
     },
   },
+  {
+    // Frontend (F-007) runs in the browser.
+    files: ['frontend/**/*.{ts,tsx}'],
+    languageOptions: {
+      globals: { ...globals.browser },
+    },
+  },
+  {
+    // Vitest test files also see Node globals for fetch mocking helpers.
+    files: ['frontend/**/*.test.{ts,tsx}', 'frontend/src/test/**'],
+    languageOptions: {
+      globals: { ...globals.node },
+    },
+  },
 );
