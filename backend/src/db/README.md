@@ -4,11 +4,11 @@ Database foundation (F-003): connection pool + migration conventions.
 
 ## Schema so far
 
-| Table              | Feature | Notes                                                                                                                                                                                                                                                                          |
-| ------------------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `users`            | F-101   | One row per person, exactly one `role` (`admin`/`teacher`/`student`), `status` (`pending` default/`active`/`inactive`), soft delete. Email unique case-insensitively via `lower(email)` index — including soft-deleted rows. `password_hash` nullable only while not `active`. |
-| `student_profiles` | F-101   | 1:1 with a `student` user. Composite FK `(user_id, role) → users (id, role)` makes a mismatched role impossible and blocks role changes while the profile exists.                                                                                                              |
-| `teacher_profiles` | F-101   | Same shape, for `teacher` users.                                                                                                                                                                                                                                               |
+| Table | Feature | Notes |
+|-------|---------|-------|
+| `users` | F-101 | One row per person, exactly one `role` (`admin`/`teacher`/`student`), `status` (`pending` default/`active`/`inactive`), soft delete. Email unique case-insensitively via `lower(email)` index — including soft-deleted rows. `password_hash` nullable only while not `active`. |
+| `student_profiles` | F-101 | 1:1 with a `student` user. Composite FK `(user_id, role) → users (id, role)` makes a mismatched role impossible and blocks role changes while the profile exists. |
+| `teacher_profiles` | F-101 | Same shape, for `teacher` users. |
 
 `role`/`status` are check-constrained `text`, not Postgres enums (adding a value
 later is a plain constraint swap). Profiles have no `deleted_at` — they follow
@@ -82,7 +82,7 @@ Every core table follows these rules unless a migration documents why not:
 
 `pool.integration.test.ts` proves the pool + migration runner work end-to-end:
 it creates a uniquely-named, disposable database on the target Postgres
-_server_, runs the migrations up, asserts `schema_migrations` and
+*server*, runs the migrations up, asserts `schema_migrations` and
 `set_updated_at()` exist, rolls all the way back down, then drops the
 database. It self-skips (with a logged reason) when no server is reachable at
 `DATABASE_URL`, so `npm test` stays green on a machine without Postgres

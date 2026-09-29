@@ -14,7 +14,6 @@ adds the shared test harness — disposable-database + reset helpers, a fake-aut
 user helper, coverage reporting (see `src/test/README.md`) — no domain tables or auth yet.
 
 Coming next:
-
 - **F-007** — frontend application skeleton
 
 ## Layout
@@ -90,16 +89,7 @@ the `x-request-id` response header and accepted from the same request header.
 Pino, JSON, one line per request (level from `LOG_LEVEL`):
 
 ```json
-{
-  "level": 30,
-  "reqId": "…",
-  "method": "GET",
-  "path": "/api/v1/health",
-  "statusCode": 200,
-  "durationMs": 10,
-  "userId": null,
-  "msg": "request completed"
-}
+{"level":30,"reqId":"…","method":"GET","path":"/api/v1/health","statusCode":200,"durationMs":10,"userId":null,"msg":"request completed"}
 ```
 
 - Disabled entirely in tests (`buildApp()`'s default); pass `{ logger: { ...loggerOptions, stream } }`

@@ -28,20 +28,16 @@ test skipped.
 import { createTestDatabase, isServerReachable, maintenanceUrl, redactUrl } from '../test/db.js';
 
 const reachable = await isServerReachable();
-test(
-  '...',
-  { skip: reachable ? false : `no Postgres reachable at ${redactUrl(maintenanceUrl())}` },
-  async (t) => {
-    const db = await createTestDatabase(); // uniquely named, already migrated up
-    t.after(() => db.drop()); // closes the pool, drops the database
+test('...', { skip: reachable ? false : `no Postgres reachable at ${redactUrl(maintenanceUrl())}` }, async (t) => {
+  const db = await createTestDatabase(); // uniquely named, already migrated up
+  t.after(() => db.drop()); // closes the pool, drops the database
 
-    // ...use db.pool for queries...
-    await db.reset(); // truncates every application table between tests (fast — no re-migrate)
-  },
-);
+  // ...use db.pool for queries...
+  await db.reset(); // truncates every application table between tests (fast — no re-migrate)
+});
 ```
 
-One disposable database per test _file_ (not per `test()` — creating and
+One disposable database per test *file* (not per `test()` — creating and
 migrating a database is comparatively slow), reset with `.reset()` between
 individual tests within a file. See `db/pool.integration.test.ts` and
 `test/db.integration.test.ts` for complete examples — the latter proves
@@ -62,7 +58,7 @@ There's no session store or `users` table yet (F-105/F-101), so this doesn't
 authenticate against real data — it sets `request.user` directly, the same
 field F-105's session middleware will populate from a real session lookup.
 That's enough to test role-gated routes (F-106+) today; nothing here needs to
-change once F-105 lands, since only the _production_ path (real session →
+change once F-105 lands, since only the *production* path (real session →
 real user) gets built then. `fakeAuthenticatedUser()` ids are obviously fake
 (`00000000-0000-4000-a000-…`), never real identifiers.
 
@@ -75,12 +71,13 @@ const { user, profileId } = await seedUser(db.pool); // active student + student
 await seedUser(db.pool, { role: 'teacher', status: 'inactive' });
 await seedUser(db.pool, { role: 'admin' }); // admins have no profile → profileId null
 await seedUser(db.pool, { status: 'pending' }); // password_hash defaults to null
+await seedUser(db.pool, { password: 'a real passphrase' }); // real argon2id hash (for login tests)
 ```
 
 `seedUser()` inserts the user and its role profile in one transaction, with a
-unique `@example.test` email by default. Until F-102 provides hashing, the
-password hash is the placeholder `FAKE_PASSWORD_HASH`, which is not a valid hash
-in any scheme and can never verify.
+unique `@example.test` email by default. Unless you pass `password`, the stored
+hash is the placeholder `FAKE_PASSWORD_HASH`, which is not a valid hash in any
+scheme and can never verify. Skipping the real argon2id work keeps fixtures fast.
 
 ## What's deferred
 
