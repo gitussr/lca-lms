@@ -462,11 +462,25 @@ Master Prompt.
 - **User story:** As a developer, I want CI to run lint, typecheck, build, and tests on every
   push, so that broken changes are caught before merge (§24).
 - **Acceptance criteria:**
-  - [ ] CI runs: install → lint → typecheck → build → unit + integration tests.
-  - [ ] CI provisions a throwaway Postgres for integration tests.
-  - [ ] Pipeline fails the build on any step failure.
-  - [ ] Secret scanning / dependency audit step (advisory at first).
+  - [x] CI runs: install → lint → typecheck → build → unit + integration tests.
+  - [x] CI provisions a throwaway Postgres for integration tests.
+  - [x] Pipeline fails the build on any step failure.
+  - [x] Secret scanning / dependency audit step (advisory at first).
 - **Security:** CI has no production credentials; uses ephemeral test secrets only.
+- **Status:** DONE 2026-09-29. `.github/workflows/ci.yml` runs on push to `main`, every PR,
+  and manual dispatch; top-level `permissions: contents: read`. Job `verify` ("Lint,
+  typecheck, build, test" — the check to require in branch protection): `npm ci` →
+  `format:check` → `lint` → `typecheck` → `build` → `db:migrate` (migrations apply cleanly
+  from empty) → `npm test`, against a `postgres:16-alpine` service container whose password
+  (`ci_ephemeral`) lives and dies with the job. Node version from `.nvmrc`. CI sets
+  `REQUIRE_TEST_DATABASE=true`: `isServerReachable()` in `backend/src/test/db.ts` then throws
+  (credentials redacted) instead of returning false, so a missing database fails the run
+  rather than going green with every integration test skipped — 2 unit tests cover both
+  modes. Job `security` (advisory, `continue-on-error` per step): gitleaks over full history +
+  `npm audit --audit-level=high`. All `verify` steps except `db:migrate` pass locally; **the
+  workflow has not yet executed on GitHub** — its first run (and the first real run of the
+  DB integration tests) happens on the next push. Branch protection must be enabled manually
+  in repo settings (documented in CONTRIBUTING).
 
 ---
 
@@ -1222,3 +1236,4 @@ infrastructure. Re-plan after each milestone using real feedback (§27, §42).
 | 1.4 | 2026-09-05 | F-003–F-006 completed (DB foundation, config/env system, structured logging & error handling, testing foundation). Status recorded per feature above. |
 | 1.5 | 2026-09-07 | F-007 completed (React + TS + Vite frontend skeleton: `/api/v1` client with error/network parsing, auth context + protected-route wrapper, Student/Teacher/Admin layout shells, loading/error primitives, 23 Vitest tests). |
 | 1.6 | 2026-09-29 | F-008 completed (Docker Compose Postgres + Redis on loopback, `db:migrate` wrapper with config fallback, first-admin seed script — INSERT deferred to F-102; not run against live containers). |
+| 1.7 | 2026-09-29 | F-009 completed (GitHub Actions CI: format/lint/typecheck/build/migrate/test against a throwaway Postgres, missing DB fails the run; advisory gitleaks + npm audit). Milestone 0 complete. |

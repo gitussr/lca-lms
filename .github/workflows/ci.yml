@@ -1,0 +1,113 @@
+# LCA LMS — continuous integration (F-009).
+#
+# `verify` is the gate: install → format → lint → typecheck → build → tests
+# (unit + integration against a throwaway Postgres). Any failing step fails the
+# run. `security` is advisory for now (Backlog F-009): it reports but never
+# blocks a merge.
+#
+# No production credentials exist here or are ever needed — the only secret-
+# looking values are the ephemeral Postgres service's, which lives and dies
+# with the job.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  verify:
+    name: Lint, typecheck, build, test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: lca_lms
+          POSTGRES_PASSWORD: ci_ephemeral
+          POSTGRES_DB: lca_lms_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U lca_lms -d lca_lms_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://lca_lms:ci_ephemeral@localhost:5432/lca_lms_test
+      # Integration tests self-skip without a database locally; in CI a missing
+      # database must fail the run instead (backend/src/test/db.ts).
+      REQUIRE_TEST_DATABASE: 'true'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Format
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Migrations apply cleanly
+        run: npm run db:migrate
+
+      - name: Test (unit + integration)
+        run: npm test
+
+  security:
+    name: Secret scan & dependency audit (advisory)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read # gitleaks lists a PR's commits to scope the scan
+    # Advisory at first (Backlog F-009): each check is continue-on-error, so a
+    # finding marks the step but never fails the run, and one check failing
+    # doesn't skip the other. Remove continue-on-error once the baseline is clean.
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history, so the secret scan covers every commit
+
+      - name: Secret scan (gitleaks)
+        continue-on-error: true
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Dependency audit
+        continue-on-error: true
+        run: npm audit --audit-level=high

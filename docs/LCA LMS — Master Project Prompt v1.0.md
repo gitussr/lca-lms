@@ -1300,11 +1300,11 @@ This section must be updated after every meaningful development session.
 
 ## Current Version
 
-`0.0.0 — Milestone 0 (Platform Foundation) in progress`
+`0.0.0 — Milestone 0 (Platform Foundation) complete`
 
 ## Current Stage
 
-`Milestone 0 — Platform Foundation`
+`Milestone 1 — MVP Core (starting)`
 
 ## Completed
 
@@ -1361,6 +1361,13 @@ This section must be updated after every meaningful development session.
   takes credentials from env/flags only, validates without echoing the password, and reports
   `pending-schema` until F-101/F-102 — the hashed INSERT lands with F-102. Not yet run
   against live containers: Docker was unavailable in-session)
+- **F-009 — Continuous integration pipeline** (`.github/workflows/ci.yml`: job `verify` —
+  install → format → lint → typecheck → build → migrate → unit + integration tests against a
+  throwaway `postgres:16` service container, ephemeral credentials only, read-only token.
+  `REQUIRE_TEST_DATABASE=true` makes the test harness fail instead of self-skip when the
+  database is missing. Job `security` — gitleaks + `npm audit`, advisory. Not yet run on
+  GitHub: the first run happens on the next push. `main` branch protection still needs to be
+  enabled manually)
 
 ## Current Technology Direction
 
@@ -1381,7 +1388,7 @@ These remain provisional until the relevant technical decisions are formally mad
 
 ## Current Feature
 
-`F-009 — Continuous integration pipeline (next). F-001 & F-002: DONE 2026-09-03. F-003 through F-006: DONE 2026-09-05. F-007: DONE 2026-09-07. F-008: DONE 2026-09-29.`
+`F-101 — User & Role data model (next). F-001 & F-002: DONE 2026-09-03. F-003 through F-006: DONE 2026-09-05. F-007: DONE 2026-09-07. F-008 & F-009: DONE 2026-09-29.`
 
 ## Milestone 0 Progress
 
@@ -1393,7 +1400,7 @@ These remain provisional until the relevant technical decisions are formally mad
 - [x] F-006 Automated testing foundation — disposable-DB-per-file harness with fast reset, fake-authenticated-user helper for role-gated routes, coverage reporting; user/course/enrollment seeding deferred to F-101/F-2xx/F-3xx
 - [x] F-007 Frontend application skeleton — React 19 + TS + Vite in `frontend/`, `/api/v1` client (typed `ApiError`/`NetworkError`), auth context + protected-route wrapper, Student/Teacher/Admin layout shells (empty nav), loading/error primitives, 23 Vitest tests
 - [x] F-008 Local development environment — Docker Compose Postgres + Redis (loopback-only, named volumes), `db:migrate` + `db:seed:admin` commands; admin INSERT deferred to F-102; not yet run against live containers
-- [ ] F-009 Continuous integration pipeline
+- [x] F-009 Continuous integration pipeline — GitHub Actions: format/lint/typecheck/build/migrate/test vs throwaway Postgres (missing DB = failure), advisory gitleaks + npm audit; first GitHub run pending push
 
 ## Architectural Decisions (locked for MVP)
 
@@ -1411,9 +1418,11 @@ Recorded in the MVP Feature Backlog §1. Changing any of these requires the §36
 
 ## Next Major Step
 
-**Milestone 0 — Platform Foundation**, F-007 of 9 done. Next: `F-008 Local development
-environment` (Docker Compose for Postgres + Redis, migration + first-admin-seed commands),
-then `F-009 Continuous integration pipeline` closes M0.
+**Milestone 0 — Platform Foundation complete** (9 of 9). Next: Milestone 1, Phase B —
+`F-101 User & Role data model` (`users` with case-insensitive unique email + role check +
+status + soft delete, 1:1 `student_profiles`/`teacher_profiles`). From M1 on, every feature
+goes through a branch + PR with green CI. Before F-101: push `main` so CI runs once, and
+confirm the DB integration tests pass against real Postgres (never yet run live).
 
 ---
 

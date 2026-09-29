@@ -21,9 +21,10 @@ Before writing code for a feature, expand it into the **Daily Development Format
   `docs/short-slug`, `test/short-slug`, `refactor/short-slug`.
 - Keep branches short-lived; rebase on `main` before opening the PR.
 
-> `main` branch protection (require PR + green CI) should be enabled in the GitHub repo
-> settings once CI exists (F-009). Until then, small-team rule: **no unreviewed commits to
-> `main` for feature work; foundation scaffolding commits are allowed with a clear message.**
+> CI (`.github/workflows/ci.yml`, F-009) runs on every push to `main` and every PR. Enable
+> `main` branch protection in the GitHub repo settings: require a PR and the
+> **"Lint, typecheck, build, test"** check to pass. From Milestone 1 on, all feature work goes
+> through a branch + PR; direct commits to `main` were only for M0 foundation scaffolding.
 
 ## 3. Commit conventions
 

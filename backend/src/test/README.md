@@ -17,7 +17,10 @@ npm run test:coverage # same, with a coverage report (no gate — see below)
 `NODE_ENV=test`. Every `*.test.ts` under `src/` runs in one pass — unit tests
 alongside integration tests. Integration tests self-skip (not fail) when no
 Postgres server is reachable, so `npm test` stays green on a machine without
-one running; F-008 automates a local one via Docker Compose.
+one running; F-008 automates a local one via Docker Compose. CI (F-009) sets
+`REQUIRE_TEST_DATABASE=true`, which turns that skip into a hard failure — a
+pipeline whose database is missing must not go green with every integration
+test skipped.
 
 ## Database harness (`db.ts`)
 

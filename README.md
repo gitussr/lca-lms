@@ -30,7 +30,7 @@ LCA-LMS/
 
 ## Current status
 
-**Milestone 0 — Platform Foundation.** In progress.
+**Milestone 0 — Platform Foundation.** Complete. Next: Milestone 1 (MVP Core).
 
 | Feature | Status |
 |---------|--------|
@@ -42,7 +42,7 @@ LCA-LMS/
 | F-006 Automated testing foundation | ✅ Done |
 | F-007 Frontend application skeleton | ✅ Done |
 | F-008 Local development environment | ✅ Done |
-| F-009 Continuous integration pipeline | Not started |
+| F-009 Continuous integration pipeline | ✅ Done |
 
 ## Prerequisites
 

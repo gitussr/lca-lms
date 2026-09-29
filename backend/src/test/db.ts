@@ -15,7 +15,7 @@ import { randomBytes } from 'node:crypto';
 import { runner } from 'node-pg-migrate';
 import { Client, Pool } from 'pg';
 
-import { redactUrl } from '../db/cli.js';
+import { describeError, redactUrl } from '../db/cli.js';
 import { MIGRATIONS_DIR as migrationsDir, MIGRATIONS_TABLE } from '../db/migrate.js';
 import { config } from '../shared/config.js';
 
@@ -37,8 +37,17 @@ export function maintenanceUrl(baseUrl: string = config.databaseUrl): string {
 /** Safe to print in a skip reason or log line — never includes credentials. */
 export { redactUrl };
 
+/**
+ * Whether a Postgres server answers at `maintenanceDatabaseUrl`. Integration
+ * tests use this to self-skip on a machine without one.
+ *
+ * With `REQUIRE_TEST_DATABASE=true` (set in CI, F-009) an unreachable server
+ * throws instead, so a misconfigured pipeline fails loudly rather than going
+ * green with every integration test skipped.
+ */
 export async function isServerReachable(
   maintenanceDatabaseUrl: string = maintenanceUrl(),
+  env: NodeJS.ProcessEnv = process.env,
 ): Promise<boolean> {
   const client = new Client({
     connectionString: maintenanceDatabaseUrl,
@@ -47,7 +56,12 @@ export async function isServerReachable(
   try {
     await client.connect();
     return true;
-  } catch {
+  } catch (err) {
+    if (env.REQUIRE_TEST_DATABASE === 'true') {
+      throw new Error(
+        `REQUIRE_TEST_DATABASE=true but no Postgres is reachable at ${redactUrl(maintenanceDatabaseUrl)}: ${describeError(err)}`,
+      );
+    }
     return false;
   } finally {
     await client.end().catch(() => {});
