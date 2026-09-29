@@ -80,23 +80,30 @@ test('validateSeedCredentials requires both fields', () => {
 const reachable = await isServerReachable();
 
 test(
-  'seedAdmin reports pending-schema when the users table is absent',
+  'seedAdmin reports which prerequisite is missing (schema, then hashing)',
   { skip: reachable ? false : `no Postgres reachable at ${redactUrl(maintenanceUrl())}` },
   async (t) => {
     const db = await createTestDatabase();
     t.after(() => db.drop());
 
-    // Migrations are applied but define no `users` table yet (F-101).
     const { Client } = await import('pg');
-    const outcome = await seedAdmin({
-      env: {
-        SEED_ADMIN_EMAIL: 'admin@example.com',
-        SEED_ADMIN_PASSWORD: GOOD_PASSWORD,
-      } as NodeJS.ProcessEnv,
-      argv: [],
-      createClient: () => new Client({ connectionString: db.url }),
-    });
+    const run = () =>
+      seedAdmin({
+        env: {
+          SEED_ADMIN_EMAIL: 'admin@example.com',
+          SEED_ADMIN_PASSWORD: GOOD_PASSWORD,
+        } as NodeJS.ProcessEnv,
+        argv: [],
+        createClient: () => new Client({ connectionString: db.url }),
+      });
 
-    assert.deepEqual(outcome, { status: 'pending-schema' });
+    // Fully migrated: `users` exists (F-101), hashing doesn't yet (F-102).
+    assert.deepEqual(await run(), { status: 'pending-hashing' });
+    const { rows } = await db.pool.query('SELECT count(*)::int AS n FROM users');
+    assert.equal(rows[0]?.n, 0, 'no account is created before hashing exists');
+
+    // Un-migrated database: no `users` table at all.
+    await db.migrateDown();
+    assert.deepEqual(await run(), { status: 'pending-schema' });
   },
 );

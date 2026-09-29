@@ -496,13 +496,27 @@ Master Prompt.
   - As an admin, I need `student` and `teacher` profile records linked to a user so that
     role-specific data has a home.
 - **Acceptance criteria:**
-  - [ ] `users` table: id, email (unique, case-insensitive), password_hash, role, status
+  - [x] `users` table: id, email (unique, case-insensitive), password_hash, role, status
         (`active` / `inactive` / `pending`), timestamps, `deleted_at`.
-  - [ ] `student_profiles` and `teacher_profiles` tables with FK to `users` (1:1).
-  - [ ] Role is an enum/check-constrained column; no user without a role.
-  - [ ] Migration + rollback; model unit tests.
+  - [x] `student_profiles` and `teacher_profiles` tables with FK to `users` (1:1).
+  - [x] Role is an enum/check-constrained column; no user without a role.
+  - [x] Migration + rollback; model unit tests.
 - **Security:** email uniqueness enforced at DB level; `password_hash` column never returned
   by any serializer (invariant 6, §19).
+- **Status:** DONE 2026-09-29 (PR #1, branch `feat/f-101-user-role-model`, CI green: 82/82
+  backend tests, 0 skipped — first feature verified against real Postgres). Migration
+  `1790690000000_users-and-profiles.ts`. Decisions made here: `users.full_name` (every user
+  incl. admins has a name — F-103 returns it); email unique via `lower(email)` index **across
+  soft-deleted rows too**; role/status are check-constrained `text`, not PG enums;
+  `password_hash` nullable (D1 `pending` users have none) but `CHECK (status <> 'active' OR
+  password_hash IS NOT NULL)`; profiles carry a constant `role` + composite FK
+  `(user_id, role) → users (id, role)` so a profile can't attach to the wrong role and a
+  user's role can't change while one exists; `ON DELETE RESTRICT` (D7); profiles have only
+  `phone` for now (F-203/F-204 extend) and no `deleted_at` of their own.
+  `modules/users/users.model.ts`: `ROLES`/`USER_STATUSES`, allow-list `toPublicUser()`.
+  `test/seed.ts` `seedUser()` closes the F-006 user-seeder deferral. `seed-admin` gains a
+  `pending-hashing` outcome; its F-102 INSERT TODO now targets `ON CONFLICT (lower(email))`
+  and needs a `full_name` input.
 
 #### F-102 — Password hashing & credential storage
 - **Priority:** P0 · **Milestone:** M1 · **Estimate:** S · **Depends on:** F-101
@@ -1237,3 +1251,4 @@ infrastructure. Re-plan after each milestone using real feedback (§27, §42).
 | 1.5 | 2026-09-07 | F-007 completed (React + TS + Vite frontend skeleton: `/api/v1` client with error/network parsing, auth context + protected-route wrapper, Student/Teacher/Admin layout shells, loading/error primitives, 23 Vitest tests). |
 | 1.6 | 2026-09-29 | F-008 completed (Docker Compose Postgres + Redis on loopback, `db:migrate` wrapper with config fallback, first-admin seed script — INSERT deferred to F-102; not run against live containers). |
 | 1.7 | 2026-09-29 | F-009 completed (GitHub Actions CI: format/lint/typecheck/build/migrate/test against a throwaway Postgres, missing DB fails the run; advisory gitleaks + npm audit). Milestone 0 complete. |
+| 1.8 | 2026-09-29 | F-101 completed (users + student/teacher profiles schema with DB-enforced role/email/password invariants, safe serializer, `seedUser()` fixture). First feature delivered via branch + PR with green CI. |

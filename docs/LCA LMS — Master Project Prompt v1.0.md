@@ -1300,11 +1300,11 @@ This section must be updated after every meaningful development session.
 
 ## Current Version
 
-`0.0.0 — Milestone 0 (Platform Foundation) complete`
+`0.0.0 — Milestone 1 (MVP Core) in progress`
 
 ## Current Stage
 
-`Milestone 1 — MVP Core (starting)`
+`Milestone 1 — MVP Core, Phase B (Identity & Access)`
 
 ## Completed
 
@@ -1368,6 +1368,13 @@ This section must be updated after every meaningful development session.
   database is missing. Job `security` — gitleaks + `npm audit`, advisory. Not yet run on
   GitHub: the first run happens on the next push. `main` branch protection still needs to be
   enabled manually)
+- **F-101 — User & Role data model** (PR #1. `users`: case-insensitive unique email incl.
+  soft-deleted rows, check-constrained role/status, `pending` default, `active` requires a
+  password hash, soft delete. `student_profiles`/`teacher_profiles` 1:1 via composite FK
+  `(user_id, role)`, so a profile can't attach to the wrong role and role changes are
+  blocked while one exists. `users.model.ts` allow-list `toPublicUser()` never emits
+  `password_hash`. `test/seed.ts` `seedUser()`. 16 schema subtests green against real
+  Postgres in CI)
 
 ## Current Technology Direction
 
@@ -1388,7 +1395,7 @@ These remain provisional until the relevant technical decisions are formally mad
 
 ## Current Feature
 
-`F-101 — User & Role data model (next). F-001 & F-002: DONE 2026-09-03. F-003 through F-006: DONE 2026-09-05. F-007: DONE 2026-09-07. F-008 & F-009: DONE 2026-09-29.`
+`F-102 — Password hashing & credential storage (next). F-001 & F-002: DONE 2026-09-03. F-003 through F-006: DONE 2026-09-05. F-007: DONE 2026-09-07. F-008, F-009 & F-101: DONE 2026-09-29.`
 
 ## Milestone 0 Progress
 
@@ -1418,11 +1425,12 @@ Recorded in the MVP Feature Backlog §1. Changing any of these requires the §36
 
 ## Next Major Step
 
-**Milestone 0 — Platform Foundation complete** (9 of 9). Next: Milestone 1, Phase B —
-`F-101 User & Role data model` (`users` with case-insensitive unique email + role check +
-status + soft delete, 1:1 `student_profiles`/`teacher_profiles`). From M1 on, every feature
-goes through a branch + PR with green CI. Before F-101: push `main` so CI runs once, and
-confirm the DB integration tests pass against real Postgres (never yet run live).
+**Milestone 0 complete; Milestone 1 Phase B in progress** (F-101 done). Next:
+`F-102 Password hashing & credential storage` (argon2id/bcrypt with cost params from config,
+documented password policy, hash/verify helpers; then implement `writeAdmin` in
+`db/seed-admin.ts` — conflict target `lower(email)`, needs a `full_name` input). Feature work
+goes through a branch + PR with green CI. Still open: enable `main` branch protection;
+allowlist the gitleaks false positive in `db/seed-admin.test.ts`.
 
 ---
 
