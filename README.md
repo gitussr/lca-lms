@@ -45,7 +45,8 @@ LCA-LMS/
 | F-008 Local development environment | ✅ Done |
 | F-009 Continuous integration pipeline | ✅ Done |
 | F-101 User & role data model | ✅ Done |
-| F-102 Password hashing & credential storage | Next |
+| F-102 Password hashing & credential storage | ✅ Done |
+| F-103 Login | Next |
 
 ## Prerequisites
 
