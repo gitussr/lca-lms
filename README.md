@@ -88,8 +88,8 @@ npm run dev:frontend       # web client on :5173
 - A port already in use? Copy `infra/.env.example` to `infra/.env` and change
   `POSTGRES_PORT` / `REDIS_PORT` (then set a matching `DATABASE_URL` in `backend/.env`).
 - First start also creates an `lca_lms_test` database for the `test` profile.
-- Until F-101 (user schema) and F-102 (password hashing) land, the seed command validates
-  the credentials and database connection, then reports that the `users` table isn't ready.
+- Until F-102 (password hashing) lands, the seed command validates the credentials and
+  database connection, then reports that hashing isn't available yet — no account is created.
 
 Backend and frontend each have their own `README` with more detail.
 

@@ -13,11 +13,12 @@
  * first admin, is provisioned out of band. This script is that mechanism.
  *
  * ── Current status ──────────────────────────────────────────────────────────
- * The `users` table does not exist until F-101 and password hashing until
- * F-102. Everything up to the final INSERT is implemented and tested here now;
- * the insert itself is a documented TODO that lands with F-102 (see
- * `writeAdmin`). Run today, the script validates the credentials, connects, and
- * reports clearly that the schema isn't ready yet.
+ * The `users` table exists since F-101; password hashing lands with F-102.
+ * Everything up to the final INSERT is implemented and tested here now; the
+ * insert itself is a documented TODO that lands with F-102 (see `writeAdmin`).
+ * Run today, the script validates the credentials, connects, and reports
+ * clearly which prerequisite is missing (`pending-schema` if migrations haven't
+ * run, `pending-hashing` until F-102).
  */
 import { pathToFileURL } from 'node:url';
 
@@ -108,6 +109,7 @@ export function validateSeedCredentials(raw: RawSeedCredentials): SeedCredential
 
 export type SeedOutcome =
   | { status: 'pending-schema' }
+  | { status: 'pending-hashing' }
   | { status: 'created'; email: string }
   | { status: 'exists'; email: string };
 
@@ -123,16 +125,22 @@ async function usersTableExists(client: Client): Promise<boolean> {
  * Insert (or no-op if already present) the admin row.
  *
  * TODO(F-102): hash `creds.password` with the shared password hasher and
- *   INSERT INTO users (email, password_hash, role, status)
- *   VALUES ($1, $2, 'admin', 'active')
- *   ON CONFLICT (email) DO NOTHING
- * returning whether a row was created. Until F-101/F-102 land there is no
- * table and no hasher, so this is unreachable — `seedAdmin` returns
- * `pending-schema` before calling it.
+ *   INSERT INTO users (email, full_name, password_hash, role, status)
+ *   VALUES ($1, $2, $3, 'admin', 'active')
+ *   ON CONFLICT (lower(email)) DO NOTHING
+ * returning whether a row was created. The conflict target must be the
+ * `lower(email)` expression — uniqueness is enforced by the
+ * `users_email_lower_key` expression index, not a plain column constraint.
+ * `full_name` is NOT NULL: take it from a new SEED_ADMIN_NAME / --name input
+ * (default "Administrator"). Until F-102 there is no hasher, so this is
+ * unreachable — `seedAdmin` returns `pending-hashing` before calling it.
  */
 async function writeAdmin(_client: Client, _creds: SeedCredentials): Promise<SeedOutcome> {
   throw new Error('writeAdmin is not implemented until F-102 (password hashing)');
 }
+
+/** Set to true (and remove) by F-102, together with implementing `writeAdmin`. */
+const PASSWORD_HASHING_AVAILABLE = false as boolean;
 
 export interface SeedAdminDeps {
   env?: NodeJS.ProcessEnv;
@@ -164,6 +172,9 @@ export async function seedAdmin(deps: SeedAdminDeps = {}): Promise<SeedOutcome> 
     if (!(await usersTableExists(client))) {
       return { status: 'pending-schema' };
     }
+    if (!PASSWORD_HASHING_AVAILABLE) {
+      return { status: 'pending-hashing' };
+    }
     return await writeAdmin(client, creds);
   } finally {
     await client.end().catch(() => {});
@@ -183,8 +194,14 @@ async function main(): Promise<void> {
       case 'pending-schema':
         console.log(
           'Credentials look good and the database is reachable, but the `users` table does not\n' +
-            'exist yet. Run `npm run db:migrate` first; if migrations are already up to date, admin\n' +
-            'seeding becomes available once F-101 (user schema) and F-102 (password hashing) land.',
+            'exist yet. Run `npm run db:migrate` first.',
+        );
+        process.exitCode = 1;
+        break;
+      case 'pending-hashing':
+        console.log(
+          'Credentials look good and the `users` table exists, but admin seeding becomes\n' +
+            'available once F-102 (password hashing) lands. No account was created.',
         );
         process.exitCode = 1;
         break;

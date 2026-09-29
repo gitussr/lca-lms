@@ -1,7 +1,19 @@
 # backend/src/db/
 
-Database foundation (F-003): connection pool + migration conventions. No domain
-tables yet — the first schema (`users`, profiles) lands with F-101.
+Database foundation (F-003): connection pool + migration conventions.
+
+## Schema so far
+
+| Table | Feature | Notes |
+|-------|---------|-------|
+| `users` | F-101 | One row per person, exactly one `role` (`admin`/`teacher`/`student`), `status` (`pending` default/`active`/`inactive`), soft delete. Email unique case-insensitively via `lower(email)` index — including soft-deleted rows. `password_hash` nullable only while not `active`. |
+| `student_profiles` | F-101 | 1:1 with a `student` user. Composite FK `(user_id, role) → users (id, role)` makes a mismatched role impossible and blocks role changes while the profile exists. |
+| `teacher_profiles` | F-101 | Same shape, for `teacher` users. |
+
+`role`/`status` are check-constrained `text`, not Postgres enums (adding a value
+later is a plain constraint swap). Profiles have no `deleted_at` — they follow
+their user's lifecycle. Serialize users only through
+`modules/users/users.model.ts` `toPublicUser()`, which never emits `password_hash`.
 
 ## Connecting
 

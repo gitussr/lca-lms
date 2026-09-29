@@ -2,9 +2,9 @@
 
 Shared test harness (F-006): one runner for unit + integration tests, a
 disposable-database-per-file helper, and a fake-authenticated-user helper for
-role-gated routes. No domain schema exists yet (`users`/`courses`/
-`enrollments` land with F-101/F-2xx/F-3xx), so the parts of this harness that
-would seed real domain fixtures are deferred — see "What's deferred" below.
+role-gated routes. Domain fixture seeders land alongside the schema they seed
+(`seed.ts`) — `seedUser()` with F-101; course/enrollment seeders are still
+deferred — see "What's deferred" below.
 
 ## Running tests
 
@@ -62,6 +62,22 @@ change once F-105 lands, since only the *production* path (real session →
 real user) gets built then. `fakeAuthenticatedUser()` ids are obviously fake
 (`00000000-0000-4000-a000-…`), never real identifiers.
 
+## Domain seeders (`seed.ts`)
+
+```ts
+import { seedUser } from '../test/seed.js';
+
+const { user, profileId } = await seedUser(db.pool); // active student + student_profile
+await seedUser(db.pool, { role: 'teacher', status: 'inactive' });
+await seedUser(db.pool, { role: 'admin' }); // admins have no profile → profileId null
+await seedUser(db.pool, { status: 'pending' }); // password_hash defaults to null
+```
+
+`seedUser()` inserts the user and its role profile in one transaction, with a
+unique `@example.test` email by default. Until F-102 provides hashing, the
+password hash is the placeholder `FAKE_PASSWORD_HASH`, which is not a valid hash
+in any scheme and can never verify.
+
 ## What's deferred
 
 The backlog's acceptance criteria for F-006 also call for helpers that "seed
@@ -69,10 +85,9 @@ a user/course/enrollment." Those tables don't exist yet — the day-by-day
 build sequence puts F-006 before Phase B (Identity & Access, M1) starts at
 F-101. Building seed helpers against a schema that doesn't exist would be
 speculative code with nothing to verify it against, so this is intentionally
-left for the features that introduce each table: a `seedUser()` helper
-alongside F-101, `seedCourse()` alongside the course model, `seedEnrollment()`
-alongside the enrollment model — each colocated with the schema it seeds, the
-same way `db.ts` and `auth.ts` live next to what they support.
+left for the features that introduce each table: `seedUser()` landed with
+F-101; `seedCourse()` follows the course model and `seedEnrollment()` the
+enrollment model.
 
 ## Coverage
 
