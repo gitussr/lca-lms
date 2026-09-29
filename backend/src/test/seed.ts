@@ -9,11 +9,13 @@
 import { randomBytes } from 'node:crypto';
 import type { Pool } from 'pg';
 
+import { hashPassword } from '../modules/auth/password.js';
 import type { Role, UserRow, UserStatus } from '../modules/users/users.model.js';
 
 /**
- * Stand-in for a real password hash until F-102 provides hashing. Clearly not
- * a valid hash in any scheme, so it can never verify against anything.
+ * Default stored hash when a test doesn't care about the password. Clearly not
+ * a valid hash in any scheme, so it can never verify against anything — pass
+ * `password` to get a real argon2id hash (slower) when a test needs to log in.
  */
 export const FAKE_PASSWORD_HASH = 'test-fixture-not-a-real-hash';
 
@@ -22,6 +24,8 @@ export interface SeedUserOptions {
   status?: UserStatus;
   email?: string;
   fullName?: string;
+  /** Real password to hash with argon2id; takes precedence over `passwordHash`. */
+  password?: string;
   /** Defaults to FAKE_PASSWORD_HASH, or null for a `pending` user. */
   passwordHash?: string | null;
   deletedAt?: Date | null;
@@ -52,11 +56,13 @@ export async function seedUser(pool: Pool, options: SeedUserOptions = {}): Promi
   const email = options.email ?? `${role}-${randomBytes(4).toString('hex')}@example.test`;
   const fullName = options.fullName ?? `Test ${role}`;
   const passwordHash =
-    options.passwordHash !== undefined
-      ? options.passwordHash
-      : status === 'pending'
-        ? null
-        : FAKE_PASSWORD_HASH;
+    options.password !== undefined
+      ? await hashPassword(options.password)
+      : options.passwordHash !== undefined
+        ? options.passwordHash
+        : status === 'pending'
+          ? null
+          : FAKE_PASSWORD_HASH;
 
   const client = await pool.connect();
   try {

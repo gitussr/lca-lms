@@ -21,6 +21,27 @@ export type NodeEnvName = (typeof NODE_ENVS)[number];
 const LOG_LEVELS = ['fatal', 'error', 'warn', 'info', 'debug', 'trace'] as const;
 export type LogLevel = (typeof LOG_LEVELS)[number];
 
+/** argon2id cost parameters (F-102). */
+export interface PasswordHashConfig {
+  /** Memory cost in KiB. */
+  memoryCost: number;
+  /** Iterations. */
+  timeCost: number;
+  /** Lanes. */
+  parallelism: number;
+}
+
+/**
+ * OWASP Password Storage Cheat Sheet's minimum argon2id profile
+ * (m=19 MiB, t=2, p=1). Used as the default everywhere and enforced as a
+ * floor in staging/production, so a typo can't silently weaken real hashes.
+ */
+export const PASSWORD_HASH_FLOOR: PasswordHashConfig = {
+  memoryCost: 19456,
+  timeCost: 2,
+  parallelism: 1,
+};
+
 export interface AppConfig {
   nodeEnv: NodeEnvName;
   isDevelopment: boolean;
@@ -32,6 +53,7 @@ export interface AppConfig {
   logLevel: LogLevel;
   corsOrigin: string[];
   databaseUrl: string;
+  passwordHash: PasswordHashConfig;
 }
 
 export class ConfigError extends Error {
@@ -52,6 +74,24 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(LOG_LEVELS).default('info'),
   CORS_ORIGIN: z.string().min(1).default('http://localhost:5173'),
   DATABASE_URL: z.string().min(1).optional(),
+  PASSWORD_HASH_MEMORY_KIB: z.coerce
+    .number()
+    .int()
+    .min(1024)
+    .max(1048576)
+    .default(PASSWORD_HASH_FLOOR.memoryCost),
+  PASSWORD_HASH_TIME_COST: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(10)
+    .default(PASSWORD_HASH_FLOOR.timeCost),
+  PASSWORD_HASH_PARALLELISM: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(16)
+    .default(PASSWORD_HASH_FLOOR.parallelism),
 });
 
 // Local placeholder credentials — not secrets, documented in `.env.example`.
@@ -124,6 +164,22 @@ export function buildConfig(env: NodeJS.ProcessEnv): AppConfig {
     issues.push('CORS_ORIGIN: must list at least one allowed origin');
   }
 
+  const passwordHash: PasswordHashConfig = {
+    memoryCost: parsed.data.PASSWORD_HASH_MEMORY_KIB,
+    timeCost: parsed.data.PASSWORD_HASH_TIME_COST,
+    parallelism: parsed.data.PASSWORD_HASH_PARALLELISM,
+  };
+  if (strict && passwordHash.memoryCost < PASSWORD_HASH_FLOOR.memoryCost) {
+    issues.push(
+      `PASSWORD_HASH_MEMORY_KIB: must be at least ${PASSWORD_HASH_FLOOR.memoryCost} in ${nodeEnv}`,
+    );
+  }
+  if (strict && passwordHash.timeCost < PASSWORD_HASH_FLOOR.timeCost) {
+    issues.push(
+      `PASSWORD_HASH_TIME_COST: must be at least ${PASSWORD_HASH_FLOOR.timeCost} in ${nodeEnv}`,
+    );
+  }
+
   if (issues.length > 0) {
     throw new ConfigError(issues);
   }
@@ -140,6 +196,7 @@ export function buildConfig(env: NodeJS.ProcessEnv): AppConfig {
     corsOrigin,
     // Non-null: every path above either sets it or throws.
     databaseUrl: databaseUrl as string,
+    passwordHash,
   };
 }
 

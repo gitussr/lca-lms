@@ -79,8 +79,8 @@ npm run db:migrate         # apply database migrations
 
 # Create the first administrator (there is no public sign-up — D1).
 # Credentials come only from env vars or flags, never from source.
-SEED_ADMIN_EMAIL=you@example.com SEED_ADMIN_PASSWORD='<12+ chars>' npm run db:seed:admin
-#   or: npm run db:seed:admin -- --email you@example.com --password '<12+ chars>'
+SEED_ADMIN_EMAIL=you@example.com SEED_ADMIN_PASSWORD='<passphrase>' npm run db:seed:admin
+#   or: npm run db:seed:admin -- --email you@example.com --password '<passphrase>' --name 'Your Name'
 
 npm run dev:backend        # API on :3000
 npm run dev:frontend       # web client on :5173
@@ -91,8 +91,9 @@ npm run dev:frontend       # web client on :5173
 - A port already in use? Copy `infra/.env.example` to `infra/.env` and change
   `POSTGRES_PORT` / `REDIS_PORT` (then set a matching `DATABASE_URL` in `backend/.env`).
 - First start also creates an `lca_lms_test` database for the `test` profile.
-- Until F-102 (password hashing) lands, the seed command validates the credentials and
-  database connection, then reports that hashing isn't available yet — no account is created.
+- The seed password must pass the password policy (12–128 characters, not a common password,
+  not containing your email or name — see `backend/src/modules/auth/README.md`) and is stored
+  only as an argon2id hash. Re-running is safe: if the email is already taken, nothing changes.
 
 Backend and frontend each have their own `README` with more detail.
 
@@ -112,7 +113,7 @@ Backend and frontend each have their own `README` with more detail.
 | `npm run services:up` / `services:down` | Start / stop local Postgres + Redis (Docker) |
 | `npm run services:reset` | Stop local services and delete their data volumes |
 | `npm run db:migrate` | Apply pending database migrations |
-| `npm run db:seed:admin` | Create the first admin from `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` |
+| `npm run db:seed:admin` | Create the first admin from `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` (/ `SEED_ADMIN_NAME`) |
 
 ## Contributing
 

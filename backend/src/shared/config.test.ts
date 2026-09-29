@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { buildConfig, ConfigError } from './config.js';
+import { buildConfig, ConfigError, PASSWORD_HASH_FLOOR } from './config.js';
 
 function env(overrides: Record<string, string | undefined> = {}): NodeJS.ProcessEnv {
   return { ...overrides } as NodeJS.ProcessEnv;
@@ -134,3 +134,46 @@ test('ConfigError never includes the raw value of an invalid variable', () => {
     assert.doesNotMatch(err.message, /sup3r-secret-pw/);
   }
 });
+
+test('password hashing defaults to the OWASP argon2id floor', () => {
+  assert.deepEqual(buildConfig(env()).passwordHash, PASSWORD_HASH_FLOOR);
+});
+
+test('password hashing costs are configurable and range-checked', () => {
+  const config = buildConfig(
+    env({
+      PASSWORD_HASH_MEMORY_KIB: '65536',
+      PASSWORD_HASH_TIME_COST: '3',
+      PASSWORD_HASH_PARALLELISM: '2',
+    }),
+  );
+  assert.deepEqual(config.passwordHash, { memoryCost: 65536, timeCost: 3, parallelism: 2 });
+  assert.throws(() => buildConfig(env({ PASSWORD_HASH_MEMORY_KIB: '512' })), ConfigError);
+  assert.throws(() => buildConfig(env({ PASSWORD_HASH_TIME_COST: '0' })), ConfigError);
+  assert.throws(() => buildConfig(env({ PASSWORD_HASH_PARALLELISM: 'lots' })), ConfigError);
+});
+
+test('development may lower hashing costs below the floor', () => {
+  const config = buildConfig(
+    env({ PASSWORD_HASH_MEMORY_KIB: '4096', PASSWORD_HASH_TIME_COST: '1' }),
+  );
+  assert.equal(config.passwordHash.memoryCost, 4096);
+});
+
+for (const nodeEnv of ['staging', 'production']) {
+  test(`${nodeEnv} refuses hashing costs below the OWASP floor`, () => {
+    assert.throws(
+      () =>
+        buildConfig(
+          env({
+            NODE_ENV: nodeEnv,
+            DATABASE_URL: 'postgresql://app:secret@db.internal:5432/lca_lms',
+            CORS_ORIGIN: 'https://app.example',
+            PASSWORD_HASH_MEMORY_KIB: '4096',
+            PASSWORD_HASH_TIME_COST: '1',
+          }),
+        ),
+      /PASSWORD_HASH_MEMORY_KIB: must be at least[\s\S]*PASSWORD_HASH_TIME_COST: must be at least/,
+    );
+  });
+}
