@@ -1375,6 +1375,12 @@ This section must be updated after every meaningful development session.
   blocked while one exists. `users.model.ts` allow-list `toPublicUser()` never emits
   `password_hash`. `test/seed.ts` `seedUser()`. 16 schema subtests green against real
   Postgres in CI)
+- **F-102 — Password hashing & credential storage** (PR #2. `modules/auth/password.ts`:
+  argon2id `hashPassword`/`verifyPassword`/`needsRehash`, NFKC-normalized, verify fails closed
+  and rejects stored hashes with out-of-range costs; `PASSWORD_HASH_*` config defaults to the
+  OWASP floor, enforced in staging/production; `validatePasswordPolicy` per NIST 800-63B,
+  documented in `modules/auth/README.md`. `db:seed:admin` now creates the first admin,
+  idempotently, never touching an existing account)
 
 ## Current Technology Direction
 
@@ -1395,7 +1401,7 @@ These remain provisional until the relevant technical decisions are formally mad
 
 ## Current Feature
 
-`F-102 — Password hashing & credential storage (next). F-001 & F-002: DONE 2026-09-03. F-003 through F-006: DONE 2026-09-05. F-007: DONE 2026-09-07. F-008, F-009 & F-101: DONE 2026-09-29.`
+`F-103 — Login (next). F-001 & F-002: DONE 2026-09-03. F-003 through F-006: DONE 2026-09-05. F-007: DONE 2026-09-07. F-008, F-009, F-101 & F-102: DONE 2026-09-29.`
 
 ## Milestone 0 Progress
 
@@ -1425,12 +1431,14 @@ Recorded in the MVP Feature Backlog §1. Changing any of these requires the §36
 
 ## Next Major Step
 
-**Milestone 0 complete; Milestone 1 Phase B in progress** (F-101 done). Next:
-`F-102 Password hashing & credential storage` (argon2id/bcrypt with cost params from config,
-documented password policy, hash/verify helpers; then implement `writeAdmin` in
-`db/seed-admin.ts` — conflict target `lower(email)`, needs a `full_name` input). Feature work
-goes through a branch + PR with green CI. Still open: enable `main` branch protection;
-allowlist the gitleaks false positive in `db/seed-admin.test.ts`.
+**Milestone 0 complete; Milestone 1 Phase B in progress** (F-101, F-102 done). Next:
+`F-103 Login` (`POST /api/v1/auth/login`: generic 401 with no user enumeration, including
+equal work for unknown emails via a dummy argon2 verify; pending/inactive/soft-deleted users
+refused; rehash on login via `needsRehash`; throttling per IP and per account). Its session
+cookie depends on D2 (Redis sessions). F-105 builds the session middleware, so decide whether
+F-103 creates the session directly or lands together with F-105. Still open: `main` branch
+protection; gitleaks allowlist for the `seed-admin.test.ts` fixture; the vitest moderate
+advisory (dev-only, needs vitest 5).
 
 ---
 

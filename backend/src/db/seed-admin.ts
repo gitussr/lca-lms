@@ -3,7 +3,7 @@
  *
  *   SEED_ADMIN_EMAIL=admin@example.com SEED_ADMIN_PASSWORD=… npm run db:seed:admin
  *   # or
- *   npm run db:seed:admin -- --email admin@example.com --password '…'
+ *   npm run db:seed:admin -- --email admin@example.com --password '…' [--name 'Jane Admin']
  *
  * Credentials come only from the environment or CLI flags — never hardcoded,
  * never written to a log line (Master Prompt §33, §19 Q10). The password value
@@ -12,23 +12,20 @@
  * D1: there is no public self-registration — every account, including the very
  * first admin, is provisioned out of band. This script is that mechanism.
  *
- * ── Current status ──────────────────────────────────────────────────────────
- * The `users` table exists since F-101; password hashing lands with F-102.
- * Everything up to the final INSERT is implemented and tested here now; the
- * insert itself is a documented TODO that lands with F-102 (see `writeAdmin`).
- * Run today, the script validates the credentials, connects, and reports
- * clearly which prerequisite is missing (`pending-schema` if migrations haven't
- * run, `pending-hashing` until F-102).
+ * The password must pass the F-102 policy and is stored only as an argon2id
+ * hash. Idempotent: if any account already uses the email, nothing is changed
+ * — the script never resets an existing password or promotes an existing user.
  */
 import { pathToFileURL } from 'node:url';
 
 import { Client } from 'pg';
 
 import { describeError, redactUrl } from './cli.js';
+import { hashPassword, validatePasswordPolicy } from '../modules/auth/password.js';
+import { normalizeEmail } from '../modules/users/users.model.js';
 import { config } from '../shared/config.js';
 
-/** F-102 owns the real password policy; this is a conservative floor for seeding. */
-export const MIN_PASSWORD_LENGTH = 12;
+export const DEFAULT_ADMIN_NAME = 'Administrator';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -46,16 +43,19 @@ export class SeedError extends Error {
 export interface RawSeedCredentials {
   email?: string;
   password?: string;
+  name?: string;
 }
 
 export interface SeedCredentials {
   email: string;
   password: string;
+  name: string;
 }
 
 /**
- * Merge credentials from `--email` / `--password` flags (highest precedence)
- * and `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` env vars. `argv` is the
+ * Merge credentials from `--email` / `--password` / `--name` flags (highest
+ * precedence) and `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` / `SEED_ADMIN_NAME`
+ * env vars. `argv` is the
  * arguments after the script name (i.e. `process.argv.slice(2)`).
  */
 export function resolveSeedCredentials(
@@ -65,6 +65,7 @@ export function resolveSeedCredentials(
   const fromEnv: RawSeedCredentials = {
     email: env.SEED_ADMIN_EMAIL?.trim() || undefined,
     password: env.SEED_ADMIN_PASSWORD || undefined,
+    name: env.SEED_ADMIN_NAME?.trim() || undefined,
   };
 
   const fromFlags: RawSeedCredentials = {};
@@ -77,15 +78,20 @@ export function resolveSeedCredentials(
     if (arg === '--email' || arg?.startsWith('--email=')) fromFlags.email = takeValue()?.trim();
     else if (arg === '--password' || arg?.startsWith('--password='))
       fromFlags.password = takeValue();
+    else if (arg === '--name' || arg?.startsWith('--name=')) fromFlags.name = takeValue()?.trim();
   }
 
   return {
     email: fromFlags.email || fromEnv.email,
     password: fromFlags.password ?? fromEnv.password,
+    name: fromFlags.name || fromEnv.name,
   };
 }
 
-/** Validate presence + shape. Never includes the password value in an issue. */
+/**
+ * Validate presence + shape, and the password against the F-102 policy (with
+ * the email and name as context). Never includes the password value in an issue.
+ */
 export function validateSeedCredentials(raw: RawSeedCredentials): SeedCredentials {
   const issues: string[] = [];
 
@@ -96,22 +102,24 @@ export function validateSeedCredentials(raw: RawSeedCredentials): SeedCredential
     issues.push(`email "${email}" is not a valid address`);
   }
 
+  const name = raw.name?.trim() || DEFAULT_ADMIN_NAME;
+  if (name.length > 200) issues.push('name must be at most 200 characters');
+
   const password = raw.password ?? '';
   if (!password) {
     issues.push('password is required (SEED_ADMIN_PASSWORD or --password)');
-  } else if (password.length < MIN_PASSWORD_LENGTH) {
-    issues.push(`password must be at least ${MIN_PASSWORD_LENGTH} characters`);
+  } else {
+    issues.push(...validatePasswordPolicy(password, { email, fullName: name }));
   }
 
   if (issues.length > 0) throw new SeedError(issues);
-  return { email: email.toLowerCase(), password };
+  return { email: normalizeEmail(email), password, name };
 }
 
 export type SeedOutcome =
   | { status: 'pending-schema' }
-  | { status: 'pending-hashing' }
-  | { status: 'created'; email: string }
-  | { status: 'exists'; email: string };
+  | { status: 'created'; email: string; id: string }
+  | { status: 'exists'; email: string; role: string };
 
 /** True once the `users` table exists (F-101). */
 async function usersTableExists(client: Client): Promise<boolean> {
@@ -122,25 +130,30 @@ async function usersTableExists(client: Client): Promise<boolean> {
 }
 
 /**
- * Insert (or no-op if already present) the admin row.
+ * Insert the admin row, or report the existing account if the email is taken.
  *
- * TODO(F-102): hash `creds.password` with the shared password hasher and
- *   INSERT INTO users (email, full_name, password_hash, role, status)
- *   VALUES ($1, $2, $3, 'admin', 'active')
- *   ON CONFLICT (lower(email)) DO NOTHING
- * returning whether a row was created. The conflict target must be the
- * `lower(email)` expression — uniqueness is enforced by the
- * `users_email_lower_key` expression index, not a plain column constraint.
- * `full_name` is NOT NULL: take it from a new SEED_ADMIN_NAME / --name input
- * (default "Administrator"). Until F-102 there is no hasher, so this is
- * unreachable — `seedAdmin` returns `pending-hashing` before calling it.
+ * `ON CONFLICT (lower(email))` targets the `users_email_lower_key` expression
+ * index (F-101), so a differently-cased duplicate is caught too. An existing
+ * account is never modified.
  */
-async function writeAdmin(_client: Client, _creds: SeedCredentials): Promise<SeedOutcome> {
-  throw new Error('writeAdmin is not implemented until F-102 (password hashing)');
-}
+async function writeAdmin(client: Client, creds: SeedCredentials): Promise<SeedOutcome> {
+  const passwordHash = await hashPassword(creds.password);
+  const inserted = await client.query<{ id: string }>(
+    `INSERT INTO users (email, full_name, password_hash, role, status)
+     VALUES ($1, $2, $3, 'admin', 'active')
+     ON CONFLICT (lower(email)) DO NOTHING
+     RETURNING id`,
+    [creds.email, creds.name, passwordHash],
+  );
+  const created = inserted.rows[0];
+  if (created) return { status: 'created', email: creds.email, id: created.id };
 
-/** Set to true (and remove) by F-102, together with implementing `writeAdmin`. */
-const PASSWORD_HASHING_AVAILABLE = false as boolean;
+  const existing = await client.query<{ role: string }>(
+    'SELECT role FROM users WHERE lower(email) = $1',
+    [creds.email],
+  );
+  return { status: 'exists', email: creds.email, role: existing.rows[0]?.role ?? 'unknown' };
+}
 
 export interface SeedAdminDeps {
   env?: NodeJS.ProcessEnv;
@@ -172,9 +185,6 @@ export async function seedAdmin(deps: SeedAdminDeps = {}): Promise<SeedOutcome> 
     if (!(await usersTableExists(client))) {
       return { status: 'pending-schema' };
     }
-    if (!PASSWORD_HASHING_AVAILABLE) {
-      return { status: 'pending-hashing' };
-    }
     return await writeAdmin(client, creds);
   } finally {
     await client.end().catch(() => {});
@@ -189,19 +199,14 @@ async function main(): Promise<void> {
         console.log(`Created admin ${outcome.email}.`);
         break;
       case 'exists':
-        console.log(`Admin ${outcome.email} already exists — nothing to do.`);
+        console.log(
+          `An account with email ${outcome.email} already exists (role: ${outcome.role}) — nothing changed.`,
+        );
         break;
       case 'pending-schema':
         console.log(
           'Credentials look good and the database is reachable, but the `users` table does not\n' +
             'exist yet. Run `npm run db:migrate` first.',
-        );
-        process.exitCode = 1;
-        break;
-      case 'pending-hashing':
-        console.log(
-          'Credentials look good and the `users` table exists, but admin seeding becomes\n' +
-            'available once F-102 (password hashing) lands. No account was created.',
         );
         process.exitCode = 1;
         break;

@@ -71,12 +71,13 @@ const { user, profileId } = await seedUser(db.pool); // active student + student
 await seedUser(db.pool, { role: 'teacher', status: 'inactive' });
 await seedUser(db.pool, { role: 'admin' }); // admins have no profile → profileId null
 await seedUser(db.pool, { status: 'pending' }); // password_hash defaults to null
+await seedUser(db.pool, { password: 'a real passphrase' }); // real argon2id hash (for login tests)
 ```
 
 `seedUser()` inserts the user and its role profile in one transaction, with a
-unique `@example.test` email by default. Until F-102 provides hashing, the
-password hash is the placeholder `FAKE_PASSWORD_HASH`, which is not a valid hash
-in any scheme and can never verify.
+unique `@example.test` email by default. Unless you pass `password`, the stored
+hash is the placeholder `FAKE_PASSWORD_HASH`, which is not a valid hash in any
+scheme and can never verify. Skipping the real argon2id work keeps fixtures fast.
 
 ## What's deferred
 

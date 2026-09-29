@@ -523,11 +523,27 @@ Master Prompt.
 - **User story:** As a security reviewer, I need passwords stored only as strong one-way
   hashes so that a database leak does not expose credentials (§12).
 - **Acceptance criteria:**
-  - [ ] Use a vetted library (argon2id or bcrypt) with sensible cost parameters from config.
-  - [ ] Password policy enforced on set/reset (min length, basic checks); documented.
-  - [ ] Hash + verify helpers with unit tests including wrong-password and tampered-hash cases.
-  - [ ] No plaintext password is ever persisted or logged.
+  - [x] Use a vetted library (argon2id or bcrypt) with sensible cost parameters from config.
+  - [x] Password policy enforced on set/reset (min length, basic checks); documented.
+  - [x] Hash + verify helpers with unit tests including wrong-password and tampered-hash cases.
+  - [x] No plaintext password is ever persisted or logged.
 - **Security:** timing-safe verification; never implement custom crypto (§12).
+- **Status:** DONE 2026-09-29 (PR #2, CI green: 112/112 backend tests, 0 skipped).
+  `modules/auth/password.ts`: argon2id via `argon2` (node-argon2; digest comparison is
+  constant-time inside the reference `argon2_verify`). `hashPassword` / `verifyPassword` /
+  `needsRehash`; NFKC normalization; `verifyPassword` never throws and fails closed on a null,
+  malformed, tampered, non-argon2id, or >1024-char input, and refuses stored hashes whose
+  embedded costs exceed the config maximums (tampered-row DoS guard). Config
+  `PASSWORD_HASH_MEMORY_KIB` / `_TIME_COST` / `_PARALLELISM` default to the OWASP floor
+  (19 MiB, t=2, p=1), enforced as a floor in staging/production. `validatePasswordPolicy`
+  (NIST 800-63B): 12–128 code points, no composition rules, common-password and
+  repeated-character blocklist, no email local part or name, no control characters; returns
+  all issues and never echoes the password; documented in `modules/auth/README.md`. The F-008
+  seed script now creates the first admin (policy → argon2id → `INSERT … ON CONFLICT
+  (lower(email)) DO NOTHING`, `--name`/`SEED_ADMIN_NAME`). It is idempotent and never alters an
+  existing account. `seedUser({ password })` stores real hashes for F-103's login tests.
+  Deferred on purpose: unknown-email timing equalization (F-103), pepper (needs key
+  management), breached-password lookup (needs an outbound-network decision).
 
 #### F-103 — Login
 - **Priority:** P0 · **Milestone:** M1 · **Estimate:** M · **Depends on:** F-102, D2
@@ -1252,3 +1268,4 @@ infrastructure. Re-plan after each milestone using real feedback (§27, §42).
 | 1.6 | 2026-09-29 | F-008 completed (Docker Compose Postgres + Redis on loopback, `db:migrate` wrapper with config fallback, first-admin seed script — INSERT deferred to F-102; not run against live containers). |
 | 1.7 | 2026-09-29 | F-009 completed (GitHub Actions CI: format/lint/typecheck/build/migrate/test against a throwaway Postgres, missing DB fails the run; advisory gitleaks + npm audit). Milestone 0 complete. |
 | 1.8 | 2026-09-29 | F-101 completed (users + student/teacher profiles schema with DB-enforced role/email/password invariants, safe serializer, `seedUser()` fixture). First feature delivered via branch + PR with green CI. |
+| 1.9 | 2026-09-29 | F-102 completed (argon2id hashing with config-driven OWASP-floor costs, fail-closed verify with tampered-hash DoS guard, NIST-style password policy; first-admin seed script now functional). |

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { verifyPassword } from '../auth/password.js';
 import { createTestDatabase, isServerReachable, maintenanceUrl, redactUrl } from '../../test/db.js';
 import { FAKE_PASSWORD_HASH, seedUser } from '../../test/seed.js';
 
@@ -192,6 +193,12 @@ test(
       await assert.rejects(seedUser(db.pool, { role: 'student', phone: 'x'.repeat(40) }));
       const { rows } = await q('SELECT count(*)::int AS n FROM users');
       assert.equal(rows[0].n, 0, 'no orphan user left behind');
+    });
+
+    await t.test('seedUser({ password }) stores a real, verifiable argon2id hash', async () => {
+      const { user } = await seedUser(db.pool, { password: 'fixture passphrase 1' });
+      assert.match(user.password_hash ?? '', /^\$argon2id\$/);
+      assert.equal(await verifyPassword(user.password_hash, 'fixture passphrase 1'), true);
     });
 
     await t.test('password_hash cannot be an empty string', async () => {
