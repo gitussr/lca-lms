@@ -21,8 +21,9 @@ test(
     const db = await createTestDatabase();
     t.after(() => db.drop());
 
+    // No separate DROP TABLE cleanup: db.drop() removes the whole database, and
+    // t.after hooks run in registration order, so the pool is already closed by then.
     await db.pool.query('CREATE TABLE widgets (id serial primary key, name text not null)');
-    t.after(() => db.pool.query('DROP TABLE IF EXISTS widgets'));
 
     await db.pool.query("INSERT INTO widgets (name) VALUES ('a'), ('b')");
     const before = await db.pool.query('SELECT count(*)::int AS count FROM widgets');
