@@ -41,14 +41,14 @@ LCA-LMS/
 | F-005 Structured logging & error handling | ✅ Done |
 | F-006 Automated testing foundation | ✅ Done |
 | F-007 Frontend application skeleton | ✅ Done |
-| F-008 Local development environment | Not started |
+| F-008 Local development environment | ✅ Done |
 | F-009 Continuous integration pipeline | Not started |
 
 ## Prerequisites
 
 - **Node.js 22.x** (`.nvmrc` pins the major version — run `nvm use`)
 - **npm 10+**
-- Docker + Docker Compose (from F-008 onward, for Postgres + Redis)
+- **Docker** with the Compose v2 plugin (`docker compose`) — runs local Postgres + Redis
 
 ## Getting started
 
@@ -64,7 +64,34 @@ npm run format:check
 npm run lint
 ```
 
-Backend and frontend each get their own `README` with run instructions once scaffolded.
+## Local development environment
+
+Postgres 16 and Redis 7 run in Docker via `infra/docker-compose.yml` (local
+development only — never a production manifest). The compose defaults match the
+backend's zero-config fallback, so no `.env` file is needed to get started.
+
+```bash
+npm run services:up        # start Postgres (:5432) + Redis (:6379) in the background
+npm run db:migrate         # apply database migrations
+
+# Create the first administrator (there is no public sign-up — D1).
+# Credentials come only from env vars or flags, never from source.
+SEED_ADMIN_EMAIL=you@example.com SEED_ADMIN_PASSWORD='<12+ chars>' npm run db:seed:admin
+#   or: npm run db:seed:admin -- --email you@example.com --password '<12+ chars>'
+
+npm run dev:backend        # API on :3000
+npm run dev:frontend       # web client on :5173
+```
+
+- `npm run services:down` stops the containers and keeps the data; `npm run services:reset`
+  also deletes the data volumes (`pgdata`, `redisdata`).
+- A port already in use? Copy `infra/.env.example` to `infra/.env` and change
+  `POSTGRES_PORT` / `REDIS_PORT` (then set a matching `DATABASE_URL` in `backend/.env`).
+- First start also creates an `lca_lms_test` database for the `test` profile.
+- Until F-101 (user schema) and F-102 (password hashing) land, the seed command validates
+  the credentials and database connection, then reports that the `users` table isn't ready.
+
+Backend and frontend each have their own `README` with more detail.
 
 ## Scripts (root)
 
@@ -79,6 +106,10 @@ Backend and frontend each get their own `README` with run instructions once scaf
 | `npm test` | Run every workspace's tests |
 | `npm run dev:backend` | Start the API in watch mode (port 3000) |
 | `npm run dev:frontend` | Start the web client dev server (port 5173) |
+| `npm run services:up` / `services:down` | Start / stop local Postgres + Redis (Docker) |
+| `npm run services:reset` | Stop local services and delete their data volumes |
+| `npm run db:migrate` | Apply pending database migrations |
+| `npm run db:seed:admin` | Create the first admin from `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` |
 
 ## Contributing
 

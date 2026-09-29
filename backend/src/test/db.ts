@@ -12,21 +12,16 @@
  * setup), so `npm test` has to stay green on a machine without one running.
  */
 import { randomBytes } from 'node:crypto';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
 import { runner } from 'node-pg-migrate';
 import { Client, Pool } from 'pg';
 
+import { redactUrl } from '../db/cli.js';
+import { MIGRATIONS_DIR as migrationsDir, MIGRATIONS_TABLE } from '../db/migrate.js';
 import { config } from '../shared/config.js';
 
-const migrationsDir = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  '../../migrations',
-);
 const silentLogger = { info: () => {}, warn: () => {}, error: () => {} };
 
-export const MIGRATIONS_TABLE = 'schema_migrations';
+export { MIGRATIONS_TABLE };
 
 function withDatabaseName(baseUrl: string, databaseName: string): string {
   const url = new URL(baseUrl);
@@ -40,9 +35,7 @@ export function maintenanceUrl(baseUrl: string = config.databaseUrl): string {
 }
 
 /** Safe to print in a skip reason or log line — never includes credentials. */
-export function redactUrl(url: string): string {
-  return url.replace(/:[^:@/]*@/, ':***@');
-}
+export { redactUrl };
 
 export async function isServerReachable(
   maintenanceDatabaseUrl: string = maintenanceUrl(),

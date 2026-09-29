@@ -1,0 +1,60 @@
+# LCA LMS — local development services (F-008).
+#
+# PostgreSQL + Redis for local development only. NOT a production manifest
+# (Master Prompt §33, §36). Credentials come from infra/.env when present;
+# the defaults below match the backend's zero-config fallback
+# (backend/src/shared/config.ts), so:
+#
+#   docker compose -f infra/docker-compose.yml up -d
+#   npm run dev:backend
+#
+# works with no infra/.env and no backend/.env at all.
+#
+# Run from the repo root via the wrapper scripts:
+#   npm run services:up      # start (detached)
+#   npm run services:down    # stop, keep data
+#   npm run services:reset   # stop and delete the data volumes
+
+name: lca-lms
+
+# Ports bind to 127.0.0.1 only: the placeholder credentials must never be
+# reachable from the LAN (and loopback-only is what makes a password-less
+# local Redis acceptable).
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-lca_lms}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lca_lms_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-lca_lms_dev}
+    ports:
+      - '127.0.0.1:${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-lca_lms} -d ${POSTGRES_DB:-lca_lms_dev}']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    # Light persistence so a restart keeps sessions during development.
+    command: ['redis-server', '--save', '60', '1', '--loglevel', 'warning']
+    ports:
+      - '127.0.0.1:${REDIS_PORT:-6379}:6379'
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:

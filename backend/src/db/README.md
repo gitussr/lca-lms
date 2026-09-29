@@ -35,8 +35,10 @@ npm run db:migrate:up              # apply pending migrations
 npm run db:migrate:down            # roll back the most recent migration
 ```
 
-All commands read `DATABASE_URL` from the environment (see `.env.example`).
-Local Postgres is not yet automated — F-008 adds `docker compose up` for it.
+`up`/`down` run through `src/db/migrate.ts`, which resolves the database the
+same way the app does: `DATABASE_URL` from the environment or `backend/.env`,
+else the local placeholder that `infra/docker-compose.yml` provisions
+(`npm run services:up` from the repo root). `create` needs no database.
 
 ## Conventions
 

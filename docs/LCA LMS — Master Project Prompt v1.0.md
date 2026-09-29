@@ -1353,6 +1353,14 @@ This section must be updated after every meaningful development session.
   and wrapped in an empty-nav layout shell over a placeholder dashboard. UI primitives:
   `Spinner`, `LoadingScreen`, `ErrorState`, `ErrorBoundary`. 23 Vitest + Testing Library
   tests; lint/typecheck/build/test green for both workspaces)
+- **F-008 — Local development environment** (`infra/docker-compose.yml`: Postgres 16 +
+  Redis 7, named volumes, healthchecks, ports bound to `127.0.0.1`; defaults match the
+  backend's zero-config placeholder so no `.env` is needed; `lca_lms_test` DB created on
+  first start. Root scripts `services:up|down|reset`, `db:migrate`, `db:seed:admin`.
+  `db/migrate.ts` runs node-pg-migrate against `config.databaseUrl`. `db/seed-admin.ts`
+  takes credentials from env/flags only, validates without echoing the password, and reports
+  `pending-schema` until F-101/F-102 — the hashed INSERT lands with F-102. Not yet run
+  against live containers: Docker was unavailable in-session)
 
 ## Current Technology Direction
 
@@ -1373,7 +1381,7 @@ These remain provisional until the relevant technical decisions are formally mad
 
 ## Current Feature
 
-`F-008 — Local development environment (next). F-001 & F-002: DONE 2026-09-03. F-003 through F-006: DONE 2026-09-05. F-007: DONE 2026-09-07.`
+`F-009 — Continuous integration pipeline (next). F-001 & F-002: DONE 2026-09-03. F-003 through F-006: DONE 2026-09-05. F-007: DONE 2026-09-07. F-008: DONE 2026-09-29.`
 
 ## Milestone 0 Progress
 
@@ -1384,7 +1392,7 @@ These remain provisional until the relevant technical decisions are formally mad
 - [x] F-005 Structured logging & error handling — Pino JSON logs, recursive redaction hook, one line per request (method/path/status/duration/reqId/userId), 5xx stack logged server-side only
 - [x] F-006 Automated testing foundation — disposable-DB-per-file harness with fast reset, fake-authenticated-user helper for role-gated routes, coverage reporting; user/course/enrollment seeding deferred to F-101/F-2xx/F-3xx
 - [x] F-007 Frontend application skeleton — React 19 + TS + Vite in `frontend/`, `/api/v1` client (typed `ApiError`/`NetworkError`), auth context + protected-route wrapper, Student/Teacher/Admin layout shells (empty nav), loading/error primitives, 23 Vitest tests
-- [ ] F-008 Local development environment
+- [x] F-008 Local development environment — Docker Compose Postgres + Redis (loopback-only, named volumes), `db:migrate` + `db:seed:admin` commands; admin INSERT deferred to F-102; not yet run against live containers
 - [ ] F-009 Continuous integration pipeline
 
 ## Architectural Decisions (locked for MVP)

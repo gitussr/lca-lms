@@ -432,10 +432,30 @@ Master Prompt.
 - **User story:** As a developer, I want `docker compose up` to start Postgres and Redis
   locally, so that onboarding is one command (§15, §33).
 - **Acceptance criteria:**
-  - [ ] `infra/docker-compose.yml` runs Postgres + Redis with named volumes.
-  - [ ] Documented commands to run migrations and seed a first admin.
-  - [ ] Seed script creates one admin account from env-provided credentials (not hardcoded).
+  - [x] `infra/docker-compose.yml` runs Postgres + Redis with named volumes.
+  - [x] Documented commands to run migrations and seed a first admin.
+  - [~] Seed script creates one admin account from env-provided credentials (not hardcoded).
+    Credential intake/validation/connection done; the INSERT itself is deferred to F-102.
 - **Security:** compose file uses non-default local passwords from `.env`; not intended for production.
+- **Status:** DONE 2026-09-29 (one criterion partially deferred, flagged — not faked).
+  `infra/docker-compose.yml`: `postgres:16-alpine` + `redis:7-alpine`, named volumes
+  `pgdata`/`redisdata`, healthchecks, ports published on `127.0.0.1` only. Credentials come
+  from `infra/.env` (`infra/.env.example` documents them) with defaults equal to the backend's
+  zero-config placeholder, so `services:up` → `db:migrate` → `dev:backend` needs no `.env`.
+  `infra/postgres/initdb/` creates the `lca_lms_test` database on first start. Root scripts:
+  `services:up|down|reset`, `db:migrate`, `db:seed:admin`. `backend/src/db/migrate.ts` replaces
+  the bare `node-pg-migrate up|down` CLI calls so migrations resolve `DATABASE_URL` exactly like
+  the app (the bare CLI had no dev fallback); the F-006 harness now imports its migrations
+  dir/table from there. `backend/src/db/seed-admin.ts`: reads `SEED_ADMIN_EMAIL`/
+  `SEED_ADMIN_PASSWORD` or `--email`/`--password`, validates (aggregated errors, ≥12-char
+  floor, password never echoed), connects, and returns `pending-schema` while there is no
+  `users` table — the hashed `INSERT … ON CONFLICT DO NOTHING` is a documented TODO for F-102.
+  `backend/src/db/cli.ts`: shared `redactUrl` + `describeError` (unwraps pg's empty-message
+  `AggregateError` on ECONNREFUSED). Tests: seed credential parsing/validation incl.
+  no-password-leak, migrate direction parsing, CLI helpers; the seed-vs-real-Postgres test
+  self-skips without a server. **Not verified against running containers — Docker is not
+  installed on the development machine this session**; compose YAML parse-checked only.
+  Both CLIs were smoke-run with no database and fail with a clear one-line message.
 
 ### F-009 — Continuous integration pipeline
 - **Priority:** P0 · **Milestone:** M0 · **Estimate:** S · **Depends on:** F-006
@@ -1201,3 +1221,4 @@ infrastructure. Re-plan after each milestone using real feedback (§27, §42).
 | 1.3 | 2026-09-03 | F-002 completed (Fastify skeleton, 12 module plugins, /api/v1/health, error contract, request context, helmet/CORS). |
 | 1.4 | 2026-09-05 | F-003–F-006 completed (DB foundation, config/env system, structured logging & error handling, testing foundation). Status recorded per feature above. |
 | 1.5 | 2026-09-07 | F-007 completed (React + TS + Vite frontend skeleton: `/api/v1` client with error/network parsing, auth context + protected-route wrapper, Student/Teacher/Admin layout shells, loading/error primitives, 23 Vitest tests). |
+| 1.6 | 2026-09-29 | F-008 completed (Docker Compose Postgres + Redis on loopback, `db:migrate` wrapper with config fallback, first-admin seed script — INSERT deferred to F-102; not run against live containers). |

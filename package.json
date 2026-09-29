@@ -21,7 +21,12 @@
     "build": "npm run build --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "dev:backend": "npm run dev --workspace @lca-lms/backend",
-    "dev:frontend": "npm run dev --workspace @lca-lms/frontend"
+    "dev:frontend": "npm run dev --workspace @lca-lms/frontend",
+    "services:up": "docker compose -f infra/docker-compose.yml up -d",
+    "services:down": "docker compose -f infra/docker-compose.yml down",
+    "services:reset": "docker compose -f infra/docker-compose.yml down -v",
+    "db:migrate": "npm run db:migrate:up --workspace @lca-lms/backend",
+    "db:seed:admin": "npm run seed:admin --workspace @lca-lms/backend"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",
