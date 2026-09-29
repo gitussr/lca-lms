@@ -30,7 +30,8 @@ LCA-LMS/
 
 ## Current status
 
-**Milestone 0 — Platform Foundation.** Complete. Next: Milestone 1 (MVP Core).
+**Milestone 0 — Platform Foundation.** Complete.
+**Milestone 1 — MVP Core.** In progress.
 
 | Feature | Status |
 |---------|--------|
@@ -43,6 +44,8 @@ LCA-LMS/
 | F-007 Frontend application skeleton | ✅ Done |
 | F-008 Local development environment | ✅ Done |
 | F-009 Continuous integration pipeline | ✅ Done |
+| F-101 User & role data model | ✅ Done |
+| F-102 Password hashing & credential storage | Next |
 
 ## Prerequisites
 
