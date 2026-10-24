@@ -4,7 +4,12 @@ import test from 'node:test';
 
 import { connectTestRedis, isRedisReachable, redactUrl, testRedisUrl } from '../../test/redis.js';
 import { RedisCounterStore } from './login-throttle.js';
-import { RedisSessionStore, SESSION_IDLE_TIMEOUT_SECONDS, sessionKey } from './session.store.js';
+import {
+  RedisSessionStore,
+  SESSION_ABSOLUTE_LIFETIME_SECONDS,
+  SESSION_IDLE_TIMEOUT_SECONDS,
+  sessionKey,
+} from './session.store.js';
 
 /** F-103: the Redis-backed session store and throttle counters, against a real Redis. */
 
@@ -31,6 +36,25 @@ test(
 
       await store.destroy(id);
       assert.equal(await store.get(id), null);
+    });
+
+    await t.test('sessions: touch slides the TTL, capped, and never revives', async (st) => {
+      const store = new RedisSessionStore(redis);
+      const created = new Date(Date.now() - (SESSION_ABSOLUTE_LIFETIME_SECONDS - 600) * 1000);
+      const { id, data } = await store.create({ userId: 'user-2', role: 'student' }, created);
+      st.after(() => store.destroy(id));
+
+      // 10 minutes of absolute lifetime left: the TTL is capped there, not 12h.
+      const now = new Date();
+      await store.touch(id, data, now);
+      const ttl = await redis.ttl(sessionKey(id));
+      assert.ok(ttl > 590 && ttl <= 600, `ttl ${ttl}`);
+      assert.equal((await store.get(id))?.lastSeenAt, now.toISOString());
+
+      // A destroyed session stays destroyed.
+      await store.destroy(id);
+      await store.touch(id, data, now);
+      assert.equal(await redis.exists(sessionKey(id)), 0);
     });
 
     await t.test('sessions: unknown and corrupted entries read as no session', async (st) => {

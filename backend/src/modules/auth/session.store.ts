@@ -18,6 +18,12 @@ import type { UserRole } from '../../shared/auth-context.js';
 
 export const SESSION_IDLE_TIMEOUT_SECONDS = 12 * 60 * 60;
 export const SESSION_ABSOLUTE_LIFETIME_SECONDS = 7 * 24 * 60 * 60;
+/**
+ * Sliding renewal is written at most this often per session, so an active
+ * user costs one Redis write a minute rather than one per request. The idle
+ * timeout is therefore accurate to within this interval.
+ */
+export const SESSION_TOUCH_INTERVAL_SECONDS = 60;
 
 const KEY_PREFIX = 'session:';
 
@@ -42,8 +48,14 @@ export interface CreatedSession {
 }
 
 export interface SessionStore {
-  create(user: { userId: string; role: UserRole }): Promise<CreatedSession>;
+  create(user: { userId: string; role: UserRole }, now?: Date): Promise<CreatedSession>;
   get(id: string): Promise<SessionData | null>;
+  /**
+   * Sliding renewal: records `lastSeenAt` and restarts the idle timeout,
+   * capped at the absolute expiry. Never re-creates a session that has
+   * already expired or been destroyed.
+   */
+  touch(id: string, data: SessionData, now?: Date): Promise<void>;
   destroy(id: string): Promise<void>;
 }
 
@@ -71,6 +83,15 @@ export function newSessionData(
   };
 }
 
+/**
+ * Seconds a session should live from `now`: the idle timeout, but never past
+ * the absolute expiry. 0 means it is already over.
+ */
+export function sessionTtlSeconds(data: SessionData, now: Date = new Date()): number {
+  const absoluteRemaining = Math.floor((Date.parse(data.absoluteExpiresAt) - now.getTime()) / 1000);
+  return Math.max(0, Math.min(SESSION_IDLE_TIMEOUT_SECONDS, absoluteRemaining));
+}
+
 function parseSessionData(raw: string): SessionData | null {
   try {
     const value = JSON.parse(raw) as Partial<SessionData>;
@@ -92,9 +113,12 @@ function parseSessionData(raw: string): SessionData | null {
 export class RedisSessionStore implements SessionStore {
   constructor(private readonly redis: Redis) {}
 
-  async create(user: { userId: string; role: UserRole }): Promise<CreatedSession> {
+  async create(
+    user: { userId: string; role: UserRole },
+    now: Date = new Date(),
+  ): Promise<CreatedSession> {
     const id = newSessionId();
-    const data = newSessionData(user);
+    const data = newSessionData(user, now);
     // NX: a 256-bit collision is not a real concern, but never overwrite.
     const result = await this.redis.set(
       sessionKey(id),
@@ -110,6 +134,18 @@ export class RedisSessionStore implements SessionStore {
   async get(id: string): Promise<SessionData | null> {
     const raw = await this.redis.get(sessionKey(id));
     return raw === null ? null : parseSessionData(raw);
+  }
+
+  async touch(id: string, data: SessionData, now: Date = new Date()): Promise<void> {
+    const ttl = sessionTtlSeconds(data, now);
+    if (ttl <= 0) {
+      await this.destroy(id);
+      return;
+    }
+    const renewed: SessionData = { ...data, lastSeenAt: now.toISOString() };
+    // XX: only if it still exists — a session destroyed by a concurrent
+    // logout must stay destroyed.
+    await this.redis.set(sessionKey(id), JSON.stringify(renewed), 'EX', ttl, 'XX');
   }
 
   async destroy(id: string): Promise<void> {

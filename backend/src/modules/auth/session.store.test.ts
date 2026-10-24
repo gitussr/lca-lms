@@ -5,7 +5,9 @@ import {
   newSessionData,
   newSessionId,
   SESSION_ABSOLUTE_LIFETIME_SECONDS,
+  SESSION_IDLE_TIMEOUT_SECONDS,
   sessionKey,
+  sessionTtlSeconds,
 } from './session.store.js';
 
 /** F-103: session ID generation and storage keys (D2). */
@@ -38,4 +40,16 @@ test('new sessions record the D2 absolute lifetime', () => {
     Date.parse(data.absoluteExpiresAt) - now.getTime(),
     SESSION_ABSOLUTE_LIFETIME_SECONDS * 1000,
   );
+});
+
+test('sliding renewal restarts the idle timeout but never passes the absolute expiry', () => {
+  const start = new Date('2026-10-24T00:00:00.000Z');
+  const data = newSessionData({ userId: 'u1', role: 'student' }, start);
+  const at = (seconds: number) => new Date(start.getTime() + seconds * 1000);
+
+  assert.equal(sessionTtlSeconds(data, start), SESSION_IDLE_TIMEOUT_SECONDS);
+  // One hour before the absolute expiry, only that hour remains.
+  assert.equal(sessionTtlSeconds(data, at(SESSION_ABSOLUTE_LIFETIME_SECONDS - 3600)), 3600);
+  assert.equal(sessionTtlSeconds(data, at(SESSION_ABSOLUTE_LIFETIME_SECONDS)), 0);
+  assert.equal(sessionTtlSeconds(data, at(SESSION_ABSOLUTE_LIFETIME_SECONDS + 60)), 0);
 });

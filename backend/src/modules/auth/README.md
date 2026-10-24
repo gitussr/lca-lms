@@ -1,7 +1,7 @@
 # backend/src/modules/auth/
 
-Authentication. So far: password hashing and policy (F-102) and login with server-side
-sessions (F-103). Logout (F-104) and the session middleware (F-105) come next.
+Authentication. So far: password hashing and policy (F-102), login with server-side sessions
+(F-103), and the session middleware (F-105). Logout (F-104) comes next.
 
 ## Password hashing (`password.ts`)
 
@@ -48,12 +48,12 @@ outbound-network decision exists.
 Body `{ email, password }`; any other field (e.g. `role`) is stripped by schema validation.
 `200 { user: { id, fullName, role } }` plus the session cookie, with `Cache-Control: no-store`.
 
-| Outcome                                                                     | Response                           |
-| --------------------------------------------------------------------------- | ---------------------------------- |
-| Correct password, `active`, not soft-deleted                                | 200 + cookie                       |
-| Unknown email, wrong password, `pending`/`inactive`/soft-deleted, no hash   | 401 `INVALID_CREDENTIALS`, no body difference |
-| Over the throttle budget (checked before the password)                      | 429 `TOO_MANY_REQUESTS` + `Retry-After` |
-| Malformed body                                                              | 400 `VALIDATION_ERROR`             |
+| Outcome                                                                   | Response                                      |
+| ------------------------------------------------------------------------- | --------------------------------------------- |
+| Correct password, `active`, not soft-deleted                              | 200 + cookie                                  |
+| Unknown email, wrong password, `pending`/`inactive`/soft-deleted, no hash | 401 `INVALID_CREDENTIALS`, no body difference |
+| Over the throttle budget (checked before the password)                    | 429 `TOO_MANY_REQUESTS` + `Retry-After`       |
+| Malformed body                                                            | 400 `VALIDATION_ERROR`                        |
 
 - **No enumeration:** every non-throttled attempt runs one argon2 verify, against a dummy hash
   (current cost parameters, computed at startup) when the account doesn't exist or has no
@@ -91,3 +91,30 @@ refunds its IP attempt, so both budgets effectively count failures.
   proxy, set it to the hop count or the proxy's addresses, or every client shares the proxy's IP.
 
 Redis down → login fails closed with a 500 (one quick retry, no unbounded queueing).
+
+## Session middleware (`session.middleware.ts`, F-105)
+
+`resolveSession` is a global `onRequest` hook; `requireAuth` is the `preHandler` a protected
+route opts into (401 `UNAUTHORIZED` when there is no user). F-106's role guards go after it.
+
+```ts
+app.get('/me', { preHandler: requireAuth }, (request) => request.user);
+```
+
+Per request with a session cookie:
+
+1. Session not in the store (idle-expired, logged out, forged) → unauthenticated.
+2. Past `absoluteExpiresAt` (7d) → session destroyed, however active it was.
+3. User re-read from Postgres: missing, not `active`, or soft-deleted → session destroyed.
+   Deactivation therefore takes effect on the very next request, and reactivating doesn't
+   revive the old session. Role and status always come from the row, not the session.
+4. Otherwise `request.user = { id, role, status }` and the idle TTL slides
+   (`touch`, written at most once per 60s, never past the absolute expiry, never reviving a
+   destroyed session).
+
+A cookie that doesn't resolve is cleared, and `auth.session.rejected` is logged with a reason.
+Public routes still answer. No cookie means no Redis or database work. Redis or Postgres
+errors propagate as a 500 (fail closed).
+
+Tests inject a clock via `buildApp({ services: { clock } })`, and `MemorySessionStore` takes the
+same clock, so idle and absolute expiry can be stepped through without waiting.

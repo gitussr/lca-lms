@@ -33,7 +33,9 @@ export function fakeAuthenticatedUser(
 
 /**
  * Makes every request `app` handles behave as if `user` were already
- * authenticated. Call once per `app` instance (not per request) — typically
+ * authenticated. Its `onRequest` hook is added after `buildApp()` registered
+ * F-105's `resolveSession`, so it runs later and wins; `requireAuth` and the
+ * F-106 role guards then see this user exactly as they would a real one. Call once per `app` instance (not per request) — typically
  * right after `buildApp()`, before `app.inject(...)`. Pass `null` to
  * explicitly simulate an unauthenticated caller.
  */
