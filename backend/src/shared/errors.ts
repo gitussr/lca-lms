@@ -63,3 +63,24 @@ export class ConflictError extends AppError {
     super(409, 'CONFLICT', message, details);
   }
 }
+
+/**
+ * Login failure. Deliberately one message for every cause — unknown email,
+ * wrong password, inactive/pending/deleted account — so the response can't be
+ * used to discover which accounts exist (F-103).
+ */
+export class InvalidCredentialsError extends AppError {
+  constructor() {
+    super(401, 'INVALID_CREDENTIALS', 'Invalid email or password');
+  }
+}
+
+/** Throttled. The error handler sends `retryAfterSeconds` as `Retry-After`. */
+export class TooManyRequestsError extends AppError {
+  readonly retryAfterSeconds: number;
+
+  constructor(retryAfterSeconds: number, message = 'Too many attempts. Try again later.') {
+    super(429, 'TOO_MANY_REQUESTS', message);
+    this.retryAfterSeconds = retryAfterSeconds;
+  }
+}

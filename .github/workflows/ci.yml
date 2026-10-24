@@ -1,7 +1,7 @@
 # LCA LMS — continuous integration (F-009).
 #
 # `verify` is the gate: install → format → lint → typecheck → build → tests
-# (unit + integration against a throwaway Postgres). Any failing step fails the
+# (unit + integration against a throwaway Postgres and Redis). Any failing step fails the
 # run. `security` is advisory for now (Backlog F-009): it reports but never
 # blocks a merge.
 #
@@ -44,6 +44,15 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 12
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
 
     env:
       NODE_ENV: test
@@ -51,6 +60,9 @@ jobs:
       # Integration tests self-skip without a database locally; in CI a missing
       # database must fail the run instead (backend/src/test/db.ts).
       REQUIRE_TEST_DATABASE: 'true'
+      # Sessions + login throttle (F-103). Same rule: no Redis = failed run.
+      REDIS_URL: redis://localhost:6379
+      REQUIRE_TEST_REDIS: 'true'
 
     steps:
       - uses: actions/checkout@v4

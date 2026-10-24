@@ -1381,6 +1381,14 @@ This section must be updated after every meaningful development session.
   OWASP floor, enforced in staging/production; `validatePasswordPolicy` per NIST 800-63B,
   documented in `modules/auth/README.md`. `db:seed:admin` now creates the first admin,
   idempotently, never touching an existing account)
+- **F-103 — Login** (branch `feat/f-103-login`, pending CI/merge. `POST /api/v1/auth/login`:
+  Redis server-side session per D2 — opaque 256-bit ID in a `__Host-lca_sid` HttpOnly/Secure/
+  SameSite=Lax cookie, stored only by hash, 12h idle / 7d absolute, prior session destroyed on
+  login. One generic 401 for every failure with a dummy argon2 verify for unknown accounts;
+  pending/inactive/soft-deleted refused; rehash on login. Throttle 5 failures/account and
+  50/IP per 15 min, counted before the password check, 429 + Retry-After. New config
+  `REDIS_URL`, `SESSION_COOKIE_SECURE`, `TRUST_PROXY` (replaces the spoofable
+  `trustProxy: true`). CI runs a Redis service)
 
 ## Current Technology Direction
 
@@ -1401,7 +1409,7 @@ These remain provisional until the relevant technical decisions are formally mad
 
 ## Current Feature
 
-`F-103 — Login (next). F-001 & F-002: DONE 2026-09-03. F-003 through F-006: DONE 2026-09-05. F-007: DONE 2026-09-07. F-008, F-009, F-101 & F-102: DONE 2026-09-29.`
+`F-103 — Login (implemented 2026-10-24, awaiting CI + merge). Next: F-105 — Authenticated session middleware. F-001 & F-002: DONE 2026-09-03. F-003 through F-006: DONE 2026-09-05. F-007: DONE 2026-09-07. F-008, F-009, F-101 & F-102: DONE 2026-09-29.`
 
 ## Milestone 0 Progress
 
@@ -1431,14 +1439,14 @@ Recorded in the MVP Feature Backlog §1. Changing any of these requires the §36
 
 ## Next Major Step
 
-**Milestone 0 complete; Milestone 1 Phase B in progress** (F-101, F-102 done). Next:
-`F-103 Login` (`POST /api/v1/auth/login`: generic 401 with no user enumeration, including
-equal work for unknown emails via a dummy argon2 verify; pending/inactive/soft-deleted users
-refused; rehash on login via `needsRehash`; throttling per IP and per account). Its session
-cookie depends on D2 (Redis sessions). F-105 builds the session middleware, so decide whether
-F-103 creates the session directly or lands together with F-105. Still open: `main` branch
-protection; gitleaks allowlist for the `seed-admin.test.ts` fixture; the vitest moderate
-advisory (dev-only, needs vitest 5).
+**Milestone 0 complete; Milestone 1 Phase B in progress** (F-101, F-102 done; F-103
+implemented). Next: `F-105 Authenticated session middleware` — read the `__Host-lca_sid`
+cookie, load the session via `SessionStore.get`, enforce `absoluteExpiresAt`, slide the 12h
+idle TTL, re-read the user every request and reject non-`active` with 401, populate
+`request.user`. F-104 (logout) is a thin layer on `SessionStore.destroy` and can follow
+immediately. Still open: `main` branch protection; gitleaks allowlist for the
+`seed-admin.test.ts` fixture; the vitest moderate advisory (dev-only, needs vitest 5);
+production deployments must set `TRUST_PROXY` to match their reverse proxy.
 
 ---
 

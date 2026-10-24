@@ -1,5 +1,5 @@
 import type { FastifyError, FastifyInstance } from 'fastify';
-import { AppError } from './errors.js';
+import { AppError, TooManyRequestsError } from './errors.js';
 
 /**
  * Standard error response body.
@@ -25,7 +25,8 @@ function body(code: string, message: string, requestId: string, details?: unknow
  *
  * Rules:
  * - Fastify schema validation errors -> 400 VALIDATION_ERROR with field details.
- * - AppError -> its own status/code/message (details passed through when set).
+ * - AppError -> its own status/code/message (details passed through when set);
+ *   TooManyRequestsError also sets Retry-After.
  * - Any other error with a 4xx status -> passed through with a generic code.
  * - Everything else -> 500 INTERNAL, full error logged server-side, generic message out.
  */
@@ -52,6 +53,9 @@ export function registerErrorHandler(app: FastifyInstance): void {
     if (error instanceof AppError) {
       if (error.statusCode >= 500) request.log.error({ err: error }, error.message);
       else request.log.info({ err: error }, error.message);
+      if (error instanceof TooManyRequestsError) {
+        void reply.header('retry-after', String(error.retryAfterSeconds));
+      }
       void reply
         .status(error.statusCode)
         .send(body(error.code, error.message, request.id, error.details));

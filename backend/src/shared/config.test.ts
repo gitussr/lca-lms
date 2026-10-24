@@ -85,12 +85,62 @@ for (const nodeEnv of ['staging', 'production']) {
         NODE_ENV: nodeEnv,
         DATABASE_URL: 'postgresql://real:pass@db.example.com:5432/lca_lms',
         CORS_ORIGIN: 'https://app.example',
+        REDIS_URL: 'rediss://:secret@cache.example.com:6380',
       }),
     );
     assert.equal(config.databaseUrl, 'postgresql://real:pass@db.example.com:5432/lca_lms');
     assert.deepEqual(config.corsOrigin, ['https://app.example']);
+    assert.equal(config.redisUrl, 'rediss://:secret@cache.example.com:6380');
+    assert.equal(config.sessionCookieSecure, true);
+  });
+
+  test(`${nodeEnv} requires an explicit REDIS_URL`, () => {
+    assert.throws(
+      () =>
+        buildConfig(
+          env({
+            NODE_ENV: nodeEnv,
+            DATABASE_URL: 'postgresql://real:pass@db.example.com:5432/lca_lms',
+            CORS_ORIGIN: 'https://app.example',
+          }),
+        ),
+      /REDIS_URL: required in/,
+    );
+  });
+
+  test(`${nodeEnv} refuses SESSION_COOKIE_SECURE=false`, () => {
+    assert.throws(
+      () =>
+        buildConfig(
+          env({
+            NODE_ENV: nodeEnv,
+            DATABASE_URL: 'postgresql://real:pass@db.example.com:5432/lca_lms',
+            CORS_ORIGIN: 'https://app.example',
+            REDIS_URL: 'redis://cache.example.com:6379',
+            SESSION_COOKIE_SECURE: 'false',
+          }),
+        ),
+      /SESSION_COOKIE_SECURE: must not be false/,
+    );
   });
 }
+
+test('Redis defaults to the local Compose instance and the session cookie to Secure', () => {
+  const config = buildConfig(env());
+  assert.equal(config.redisUrl, 'redis://localhost:6379');
+  assert.equal(config.sessionCookieSecure, true);
+});
+
+test('development may turn SESSION_COOKIE_SECURE off', () => {
+  assert.equal(buildConfig(env({ SESSION_COOKIE_SECURE: 'false' })).sessionCookieSecure, false);
+});
+
+test('rejects a REDIS_URL with an unsupported protocol', () => {
+  assert.throws(
+    () => buildConfig(env({ REDIS_URL: 'http://localhost:6379' })),
+    /REDIS_URL: unsupported protocol/,
+  );
+});
 
 test('rejects a malformed DATABASE_URL', () => {
   assert.throws(
@@ -177,3 +227,18 @@ for (const nodeEnv of ['staging', 'production']) {
     );
   });
 }
+
+test('TRUST_PROXY defaults to off and accepts a hop count or proxy addresses', () => {
+  assert.equal(buildConfig(env()).trustProxy, false);
+  assert.equal(buildConfig(env({ TRUST_PROXY: '1' })).trustProxy, 1);
+  assert.deepEqual(buildConfig(env({ TRUST_PROXY: '10.0.0.0/8, 127.0.0.1' })).trustProxy, [
+    '10.0.0.0/8',
+    '127.0.0.1',
+  ]);
+});
+
+test('TRUST_PROXY refuses "true" and malformed values', () => {
+  assert.throws(() => buildConfig(env({ TRUST_PROXY: 'true' })), /TRUST_PROXY: "true" trusts/);
+  assert.throws(() => buildConfig(env({ TRUST_PROXY: 'proxy.example' })), /TRUST_PROXY: expected/);
+  assert.throws(() => buildConfig(env({ TRUST_PROXY: '0' })), /TRUST_PROXY: hop count/);
+});
