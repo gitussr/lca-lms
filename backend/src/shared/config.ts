@@ -53,7 +53,21 @@ export interface AppConfig {
   logLevel: LogLevel;
   corsOrigin: string[];
   databaseUrl: string;
+  redisUrl: string;
   passwordHash: PasswordHashConfig;
+  /**
+   * Whether the session cookie carries `Secure` (and the `__Host-` name
+   * prefix). Always true in staging/production; development/test may turn it
+   * off for plain-http setups other than localhost.
+   */
+  sessionCookieSecure: boolean;
+  /**
+   * Fastify `trustProxy`: which hops' `X-Forwarded-For` to believe when
+   * deriving `request.ip` (the login throttle keys on it). `false` = use the
+   * socket address; a number = trust that many hops; a list = trust only those
+   * proxy addresses/CIDRs. Never `true`, which would let any client pick its IP.
+   */
+  trustProxy: false | number | string[];
 }
 
 export class ConfigError extends Error {
@@ -74,6 +88,9 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(LOG_LEVELS).default('info'),
   CORS_ORIGIN: z.string().min(1).default('http://localhost:5173'),
   DATABASE_URL: z.string().min(1).optional(),
+  REDIS_URL: z.string().min(1).optional(),
+  SESSION_COOKIE_SECURE: z.enum(['true', 'false']).default('true'),
+  TRUST_PROXY: z.string().default('false'),
   PASSWORD_HASH_MEMORY_KIB: z.coerce
     .number()
     .int()
@@ -98,6 +115,49 @@ const envSchema = z.object({
 // F-008's Docker Compose setup provisions a database matching these.
 const DEV_DATABASE_URL = 'postgresql://lca_lms:lca_lms_dev@localhost:5432/lca_lms_dev';
 const TEST_DATABASE_URL = 'postgresql://lca_lms:lca_lms_dev@localhost:5432/lca_lms_test';
+// F-008's Compose Redis: loopback-only, no password.
+const DEV_REDIS_URL = 'redis://localhost:6379';
+
+function validateRedisUrl(value: string, issues: string[]): void {
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    issues.push('REDIS_URL: not a valid URL');
+    return;
+  }
+  if (parsed.protocol !== 'redis:' && parsed.protocol !== 'rediss:') {
+    issues.push(
+      `REDIS_URL: unsupported protocol "${parsed.protocol}" (expected redis:// or rediss://)`,
+    );
+  }
+}
+
+function parseTrustProxy(value: string, issues: string[]): AppConfig['trustProxy'] {
+  const trimmed = value.trim();
+  if (trimmed === '' || trimmed === 'false') return false;
+  if (/^\d+$/.test(trimmed)) {
+    const hops = Number(trimmed);
+    if (hops >= 1 && hops <= 10) return hops;
+    issues.push('TRUST_PROXY: hop count must be between 1 and 10');
+    return false;
+  }
+  if (trimmed === 'true') {
+    issues.push(
+      'TRUST_PROXY: "true" trusts any client-supplied X-Forwarded-For; use a hop count or proxy addresses',
+    );
+    return false;
+  }
+  const entries = trimmed
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+  if (entries.some((entry) => !/^[0-9a-fA-F:.]+(?:\/\d{1,3})?$/.test(entry))) {
+    issues.push('TRUST_PROXY: expected false, a hop count, or comma-separated IPs/CIDRs');
+    return false;
+  }
+  return entries;
+}
 
 function validateDatabaseUrl(value: string, issues: string[]): void {
   let parsed: URL;
@@ -152,6 +212,24 @@ export function buildConfig(env: NodeJS.ProcessEnv): AppConfig {
     }
   }
 
+  let redisUrl = parsed.data.REDIS_URL?.trim();
+  if (!redisUrl) {
+    if (strict) {
+      issues.push(`REDIS_URL: required in ${nodeEnv}`);
+    } else {
+      redisUrl = DEV_REDIS_URL;
+    }
+  } else {
+    validateRedisUrl(redisUrl, issues);
+  }
+
+  const sessionCookieSecure = parsed.data.SESSION_COOKIE_SECURE === 'true';
+  if (strict && !sessionCookieSecure) {
+    issues.push(`SESSION_COOKIE_SECURE: must not be false in ${nodeEnv}`);
+  }
+
+  const trustProxy = parseTrustProxy(parsed.data.TRUST_PROXY, issues);
+
   if (strict && !env.CORS_ORIGIN?.trim()) {
     issues.push(
       `CORS_ORIGIN: required in ${nodeEnv} (no localhost default outside development/test)`,
@@ -196,7 +274,10 @@ export function buildConfig(env: NodeJS.ProcessEnv): AppConfig {
     corsOrigin,
     // Non-null: every path above either sets it or throws.
     databaseUrl: databaseUrl as string,
+    redisUrl: redisUrl as string,
     passwordHash,
+    sessionCookieSecure,
+    trustProxy,
   };
 }
 

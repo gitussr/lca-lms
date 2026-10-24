@@ -550,15 +550,31 @@ Master Prompt.
 - **User story:** As a registered user, I want to log in with email and password so that I
   can access my role's area of the LMS.
 - **Acceptance criteria:**
-  - [ ] `POST /api/v1/auth/login` accepts email + password.
-  - [ ] On success: creates a session, sets an httpOnly, Secure, SameSite cookie; returns
+  - [x] `POST /api/v1/auth/login` accepts email + password.
+  - [x] On success: creates a session, sets an httpOnly, Secure, SameSite cookie; returns
         the current user's safe profile (id, name, role).
-  - [ ] On failure: generic "invalid credentials" (no user-enumeration), 401.
-  - [ ] Inactive / pending / soft-deleted users cannot log in (invariant 2 groundwork).
-  - [ ] Rate limiting / throttling on repeated failures per IP and per account.
-  - [ ] Tests: valid login, wrong password, unknown email, inactive user, throttle triggers.
+  - [x] On failure: generic "invalid credentials" (no user-enumeration), 401.
+  - [x] Inactive / pending / soft-deleted users cannot log in (invariant 2 groundwork).
+  - [x] Rate limiting / throttling on repeated failures per IP and per account.
+  - [x] Tests: valid login, wrong password, unknown email, inactive user, throttle triggers.
 - **Security:** §19 Q5–Q9 — request cannot be replayed to escalate; no role accepted from the
   client; failed attempts logged without the password.
+- **Status:** IMPLEMENTED 2026-10-24 on branch `feat/f-103-login` (awaiting CI + merge).
+  D2 applied as locked: F-103 *creates* the Redis session; F-105 resolves/renews it.
+  `session.store.ts`: 256-bit base64url ID in the cookie, only `sha256(id)` used as the Redis
+  key; idle TTL 12h, `absoluteExpiresAt` 7d recorded for F-105; prior session destroyed on
+  login (fixation). Cookie `__Host-lca_sid` (`HttpOnly; Secure; SameSite=Lax; Path=/`).
+  `login-throttle.ts`: Redis fixed 15-min windows, 5 failures/account, 50/IP (classroom NAT),
+  counted atomically before the password check, success clears the account and refunds the
+  IP; 429 + `Retry-After`; unknown emails counted identically. `login.service.ts`: one argon2
+  verify per attempt (dummy hash for unknown/hashless accounts), status checked after the
+  password, one generic 401 `INVALID_CREDENTIALS`, rehash-on-login, failures logged with
+  reason + userId, never password or email. New config `REDIS_URL` (required in
+  staging/production), `SESSION_COOKIE_SECURE`, `TRUST_PROXY` — the latter replaces the
+  F-002 `trustProxy: true`, which would have let any client spoof `X-Forwarded-For` past the
+  per-IP throttle. `buildApp({ services })` injects pool/session store/throttle for tests.
+  CI gains a Redis service + `REQUIRE_TEST_REDIS`. Not done here: the frontend still can't
+  tell it is logged in until `/me` (F-107); login CSRF is F-1302.
 
 #### F-104 — Logout & session invalidation
 - **Priority:** P0 · **Milestone:** M1 · **Estimate:** S · **Depends on:** F-103

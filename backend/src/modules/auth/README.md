@@ -1,7 +1,7 @@
 # backend/src/modules/auth/
 
-Authentication. So far: password hashing and policy (F-102). Login, sessions,
-and logout land with F-103–F-105.
+Authentication. So far: password hashing and policy (F-102) and login with server-side
+sessions (F-103). Logout (F-104) and the session middleware (F-105) come next.
 
 ## Password hashing (`password.ts`)
 
@@ -42,3 +42,52 @@ It returns **every** issue at once. Issues describe the rule and never echo the 
 
 **Future:** check against a breached-password corpus (e.g. HIBP k-anonymity range API) once an
 outbound-network decision exists.
+
+## Login (`POST /api/v1/auth/login`, F-103)
+
+Body `{ email, password }`; any other field (e.g. `role`) is stripped by schema validation.
+`200 { user: { id, fullName, role } }` plus the session cookie, with `Cache-Control: no-store`.
+
+| Outcome                                                                     | Response                           |
+| --------------------------------------------------------------------------- | ---------------------------------- |
+| Correct password, `active`, not soft-deleted                                | 200 + cookie                       |
+| Unknown email, wrong password, `pending`/`inactive`/soft-deleted, no hash   | 401 `INVALID_CREDENTIALS`, no body difference |
+| Over the throttle budget (checked before the password)                      | 429 `TOO_MANY_REQUESTS` + `Retry-After` |
+| Malformed body                                                              | 400 `VALIDATION_ERROR`             |
+
+- **No enumeration:** every non-throttled attempt runs one argon2 verify, against a dummy hash
+  (current cost parameters, computed at startup) when the account doesn't exist or has no
+  password. Account status is checked only after the password.
+- **Rehash on login:** a hash made with outdated costs is replaced after a successful verify
+  (best-effort; guarded so a concurrent password change wins).
+- **Logging:** `auth.login.failed` with `reason` and the resolved `userId` (or null) and IP —
+  never the password or the submitted email. `auth.login.succeeded`, `auth.login.throttled`.
+
+### Sessions (`session.store.ts`, D2)
+
+- ID: 32 random bytes, base64url. Redis key: `session:<sha256(id)>`, so stored keys aren't
+  usable cookies.
+- Value: `{ userId, role, createdAt, lastSeenAt, absoluteExpiresAt }`. Role is a snapshot; F-105
+  re-reads the user on every request.
+- Idle timeout 12h (the Redis TTL, slid by F-105). Absolute lifetime 7d (`absoluteExpiresAt`,
+  enforced by F-105).
+- Login destroys any session the browser already presented (fixation) and always issues a new ID.
+- Cookie `__Host-lca_sid`: `HttpOnly; Secure; SameSite=Lax; Path=/`, no `Domain`, `Max-Age` 7d.
+  `SESSION_COOKIE_SECURE=false` (development/test only) drops `Secure` and the prefix (`lca_sid`).
+
+### Throttling (`login-throttle.ts`)
+
+Fixed 15-minute windows in Redis (`login-throttle:account:<sha256(email)>`,
+`login-throttle:ip:<ip>`). Every attempt is counted atomically **before** the password check,
+so parallel guesses can't race the counter; a successful login clears the account counter and
+refunds its IP attempt, so both budgets effectively count failures.
+
+- **Per account:** 5 failures, then 429 for the rest of the window — even with the right
+  password. Unknown emails are counted the same way.
+- **Per IP:** 50 failures. Generous because a classroom shares one NAT address; successful logins
+  never spend it.
+- Nothing locks permanently (that would let an attacker lock real users out).
+- `request.ip` honours `X-Forwarded-For` only per `TRUST_PROXY` (default off). Behind a reverse
+  proxy, set it to the hop count or the proxy's addresses, or every client shares the proxy's IP.
+
+Redis down → login fails closed with a 500 (one quick retry, no unbounded queueing).

@@ -1,9 +1,15 @@
 import { randomUUID } from 'node:crypto';
+import cookie from '@fastify/cookie';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
+import type { Pool } from 'pg';
 
+import { getPool } from './db/pool.js';
+import { LoginThrottle, RedisCounterStore } from './modules/auth/login-throttle.js';
+import { RedisSessionStore, type SessionStore } from './modules/auth/session.store.js';
 import { config } from './shared/config.js';
+import { getRedis } from './shared/redis.js';
 import { registerErrorHandler } from './shared/error-handler.js';
 import { loggerOptions } from './shared/logger.js';
 
@@ -48,6 +54,25 @@ const moduleRoutes = [
   progressRoutes,
 ];
 
+/**
+ * Process-wide dependencies route handlers reach through `app.services`.
+ * Production uses the shared Postgres pool and Redis; tests pass their own
+ * (a disposable database, in-memory stores) via `buildApp({ services })`.
+ */
+export interface AppServices {
+  pool: Pool;
+  sessions: SessionStore;
+  loginThrottle: LoginThrottle;
+}
+
+function defaultServices(): AppServices {
+  return {
+    pool: getPool(),
+    sessions: new RedisSessionStore(getRedis()),
+    loginThrottle: new LoginThrottle(new RedisCounterStore(getRedis())),
+  };
+}
+
 export interface BuildAppOptions {
   /**
    * Overrides the Fastify logger. Defaults to disabled in tests and the
@@ -56,6 +81,12 @@ export interface BuildAppOptions {
    * here rather than relying on the default.
    */
   logger?: FastifyServerOptions['logger'];
+  /** Overrides any of the default services (see `AppServices`). */
+  services?: Partial<AppServices>;
+}
+
+function trustHops(hops: number): (address: string, hop: number) => boolean {
+  return (_address, hop) => hop < hops;
 }
 
 export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
@@ -65,13 +96,26 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     // hook below) instead of Fastify's default two-line request/response log.
     disableRequestLogging: true,
     bodyLimit: BODY_LIMIT_BYTES,
-    trustProxy: true,
+    // Which X-Forwarded-For hops to believe for request.ip (config TRUST_PROXY).
+    // A hop count becomes the equivalent trust function (proxy-addr semantics),
+    // which Fastify's typings accept where a bare number isn't.
+    trustProxy:
+      typeof config.trustProxy === 'number' ? trustHops(config.trustProxy) : config.trustProxy,
     requestIdHeader: 'x-request-id',
     genReqId: (req) => {
       const header = req.headers['x-request-id'];
       return typeof header === 'string' && header.length > 0 ? header : randomUUID();
     },
   });
+
+  // Overrides are taken as given; defaults are only built for what's missing,
+  // so a test injecting everything never touches the real pool or Redis.
+  const overrides = options.services ?? {};
+  const services: AppServices =
+    overrides.pool && overrides.sessions && overrides.loginThrottle
+      ? (overrides as AppServices)
+      : { ...defaultServices(), ...overrides };
+  app.decorate('services', services);
 
   // Request-scoped context. F-105 replaces the null with the resolved session user.
   app.decorateRequest('user', null);
@@ -103,6 +147,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   });
 
   await app.register(helmet);
+  await app.register(cookie);
   await app.register(cors, {
     origin: config.corsOrigin,
     credentials: true,

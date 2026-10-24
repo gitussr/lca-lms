@@ -1,6 +1,7 @@
 import { buildApp } from './app.js';
 import { closePool } from './db/pool.js';
 import { config } from './shared/config.js';
+import { closeRedis } from './shared/redis.js';
 
 /**
  * Process entrypoint: build the app, start listening, and shut down cleanly on
@@ -14,6 +15,7 @@ async function main(): Promise<void> {
     try {
       await app.close();
       await closePool();
+      await closeRedis();
       process.exit(0);
     } catch (err) {
       app.log.error({ err }, 'error during shutdown');
