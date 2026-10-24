@@ -54,11 +54,11 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
   warmDummyHash();
 
   app.post<{ Body: LoginBody }>('/auth/login', { schema: loginSchema }, async (request, reply) => {
-    const { pool, sessions, loginThrottle } = app.services;
+    const { pool, sessions, loginThrottle, clock } = app.services;
     const cookieName = sessionCookieName();
 
     const result = await login(
-      { pool, sessions, throttle: loginThrottle, log: request.log },
+      { pool, sessions, throttle: loginThrottle, log: request.log, clock },
       { email: request.body.email, password: request.body.password, ip: request.ip },
     );
 

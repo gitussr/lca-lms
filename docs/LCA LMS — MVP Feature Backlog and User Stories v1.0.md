@@ -559,7 +559,8 @@ Master Prompt.
   - [x] Tests: valid login, wrong password, unknown email, inactive user, throttle triggers.
 - **Security:** §19 Q5–Q9 — request cannot be replayed to escalate; no role accepted from the
   client; failed attempts logged without the password.
-- **Status:** IMPLEMENTED 2026-10-24 on branch `feat/f-103-login` (awaiting CI + merge).
+- **Status:** DONE 2026-10-24 (PR #3, squash `6c9c1f7`, CI green: 147/147 backend tests,
+  0 skipped — first run against a real Redis).
   D2 applied as locked: F-103 *creates* the Redis session; F-105 resolves/renews it.
   `session.store.ts`: 256-bit base64url ID in the cookie, only `sha256(id)` used as the Redis
   key; idle TTL 12h, `absoluteExpiresAt` 7d recorded for F-105; prior session destroyed on
@@ -592,12 +593,23 @@ Master Prompt.
 - **User story:** As a developer, I want a middleware that resolves the current active user
   from the session so that every protected route starts from a trusted identity.
 - **Acceptance criteria:**
-  - [ ] Middleware loads the session, fetches the user, and attaches `{ id, role, status }` to the request.
-  - [ ] Rejects with 401 if no session, expired session, or user not `active`.
-  - [ ] Session expiry / sliding renewal behaviour defined and tested.
-  - [ ] Tests: no session, expired session, user deactivated mid-session.
+  - [x] Middleware loads the session, fetches the user, and attaches `{ id, role, status }` to the request.
+  - [x] Rejects with 401 if no session, expired session, or user not `active`.
+  - [x] Session expiry / sliding renewal behaviour defined and tested.
+  - [x] Tests: no session, expired session, user deactivated mid-session.
 - **Security:** re-checks user status on every request (a deactivated user loses access
   immediately — invariant 2).
+- **Status:** IMPLEMENTED 2026-10-24 on branch `feat/f-105-session-middleware` (awaiting CI +
+  merge). Two parts: `resolveSession` (global `onRequest` hook) turns the cookie into
+  `request.user` or leaves it `null`; `requireAuth` (`preHandler`) is the explicit 401 guard
+  each protected route opts into — F-006's `actAs()` keeps working because its hook runs
+  later. Order: session lookup → absolute 7d expiry → user re-read from Postgres (missing /
+  not `active` / soft-deleted destroys the session; role and status from the row, never the
+  session snapshot) → sliding renewal. `SessionStore.touch` slides the 12h idle TTL at most
+  once per 60s, capped at the absolute expiry, `SET … XX` so a destroyed session is never
+  revived. Dead cookies are cleared; public routes still answer; store/DB errors fail closed
+  (500). `AppServices` gains an injectable `clock`; `MemorySessionStore` models idle expiry
+  on it.
 
 #### F-106 — Role-based authorization middleware
 - **Priority:** P0 · **Milestone:** M1 · **Estimate:** S · **Depends on:** F-105

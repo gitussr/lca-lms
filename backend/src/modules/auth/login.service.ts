@@ -26,6 +26,7 @@ export interface LoginDeps {
   sessions: SessionStore;
   throttle: LoginThrottle;
   log: FastifyBaseLogger;
+  clock: () => Date;
 }
 
 export interface LoginInput {
@@ -105,7 +106,7 @@ export async function login(deps: LoginDeps, input: LoginInput): Promise<LoginRe
   await throttle.recordSuccess(input.ip, email);
   await upgradeHashIfNeeded(deps, user, input.password);
 
-  const session = await sessions.create({ userId: user.id, role: user.role });
+  const session = await sessions.create({ userId: user.id, role: user.role }, deps.clock());
   log.info({ event: 'auth.login.succeeded', userId: user.id }, 'login succeeded');
 
   return { user: { id: user.id, fullName: user.full_name, role: user.role }, session };

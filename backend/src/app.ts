@@ -7,6 +7,7 @@ import type { Pool } from 'pg';
 
 import { getPool } from './db/pool.js';
 import { LoginThrottle, RedisCounterStore } from './modules/auth/login-throttle.js';
+import { resolveSession } from './modules/auth/session.middleware.js';
 import { RedisSessionStore, type SessionStore } from './modules/auth/session.store.js';
 import { config } from './shared/config.js';
 import { getRedis } from './shared/redis.js';
@@ -63,13 +64,21 @@ export interface AppServices {
   pool: Pool;
   sessions: SessionStore;
   loginThrottle: LoginThrottle;
+  /** Current time. Injectable so session-expiry tests don't have to wait. */
+  clock: () => Date;
 }
 
-function defaultServices(): AppServices {
+/**
+ * Fills in whatever the caller didn't override. Each default is built only
+ * when missing, so a test that injects its own stores never touches the real
+ * pool or Redis.
+ */
+function resolveServices(overrides: Partial<AppServices>): AppServices {
   return {
-    pool: getPool(),
-    sessions: new RedisSessionStore(getRedis()),
-    loginThrottle: new LoginThrottle(new RedisCounterStore(getRedis())),
+    pool: overrides.pool ?? getPool(),
+    sessions: overrides.sessions ?? new RedisSessionStore(getRedis()),
+    loginThrottle: overrides.loginThrottle ?? new LoginThrottle(new RedisCounterStore(getRedis())),
+    clock: overrides.clock ?? (() => new Date()),
   };
 }
 
@@ -108,16 +117,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     },
   });
 
-  // Overrides are taken as given; defaults are only built for what's missing,
-  // so a test injecting everything never touches the real pool or Redis.
-  const overrides = options.services ?? {};
-  const services: AppServices =
-    overrides.pool && overrides.sessions && overrides.loginThrottle
-      ? (overrides as AppServices)
-      : { ...defaultServices(), ...overrides };
-  app.decorate('services', services);
+  app.decorate('services', resolveServices(options.services ?? {}));
 
-  // Request-scoped context. F-105 replaces the null with the resolved session user.
+  // Request-scoped context: `null` until the session hook below resolves a user.
   app.decorateRequest('user', null);
 
   // Echo the correlation id on every response (success and error).
@@ -126,7 +128,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   });
 
   // One structured line per request: method, path, status, duration, and the
-  // authenticated user (once F-105 populates request.user). `request.log` is
+  // authenticated user (resolved by the session hook). `request.log` is
   // Fastify's per-request child logger, so `reqId` is already bound onto
   // every line it emits — no need to add it again here. The query string is
   // stripped from `path`: it can carry sensitive values (e.g. a reset token)
@@ -148,6 +150,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
   await app.register(helmet);
   await app.register(cookie);
+
+  // F-105: resolve the session cookie into request.user on every request.
+  // Routes that require a user add `requireAuth` (modules/auth/session.middleware.ts).
+  app.addHook('onRequest', resolveSession);
   await app.register(cors, {
     origin: config.corsOrigin,
     credentials: true,
