@@ -191,7 +191,8 @@ test(
       for (const body of [
         { email: 'a@example.test' },
         { password: PASSWORD },
-        { email: 42, password: PASSWORD },
+        // Not `email: 42`: Fastify's Ajv coerces scalars, so that becomes "42".
+        { email: { $ne: null }, password: PASSWORD },
         { email: '', password: PASSWORD },
         { email: 'a@example.test', password: 'x'.repeat(1025) },
       ]) {

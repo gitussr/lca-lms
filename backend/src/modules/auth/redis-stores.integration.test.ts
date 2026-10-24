@@ -17,10 +17,10 @@ test(
     const redis = await connectTestRedis();
     t.after(() => redis.disconnect());
 
-    await t.test('sessions: create → get → destroy, stored under the hashed ID', async () => {
+    await t.test('sessions: create → get → destroy, stored under the hashed ID', async (st) => {
       const store = new RedisSessionStore(redis);
       const { id, data } = await store.create({ userId: 'user-1', role: 'teacher' });
-      t.after(() => store.destroy(id));
+      st.after(() => store.destroy(id));
 
       assert.deepEqual(await store.get(id), data);
       assert.equal(await redis.exists(id), 0);
@@ -33,20 +33,20 @@ test(
       assert.equal(await store.get(id), null);
     });
 
-    await t.test('sessions: unknown and corrupted entries read as no session', async () => {
+    await t.test('sessions: unknown and corrupted entries read as no session', async (st) => {
       const store = new RedisSessionStore(redis);
       assert.equal(await store.get('never-issued'), null);
 
       const id = `corrupt-${randomBytes(8).toString('hex')}`;
       await redis.set(sessionKey(id), '{not json', 'EX', 60);
-      t.after(() => redis.del(sessionKey(id)));
+      st.after(() => redis.del(sessionKey(id)));
       assert.equal(await store.get(id), null);
     });
 
-    await t.test('counters: increment starts a window, decrement floors at zero', async () => {
+    await t.test('counters: increment starts a window, decrement floors at zero', async (st) => {
       const counters = new RedisCounterStore(redis);
       const key = `login-throttle:test:${randomBytes(8).toString('hex')}`;
-      t.after(() => redis.del(key));
+      st.after(() => redis.del(key));
 
       assert.deepEqual(await counters.increment(key, 900), { count: 1, ttlSeconds: 900 });
       const second = await counters.increment(key, 900);
